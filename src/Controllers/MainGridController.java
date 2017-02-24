@@ -2,15 +2,20 @@ package Controllers;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
+import Core.CApplication;
 import Core.CController;
 import Core.CUser;
 import Core.CUserRules;
+import Core.CValidations;
+import Models.FilesModel;
 import db.DB;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
@@ -21,6 +26,8 @@ import javafx.scene.control.Button;
 import javafx.scene.control.TreeCell;
 import javafx.scene.control.TreeItem;
 import javafx.scene.control.TreeView;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
@@ -29,231 +36,210 @@ import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
 import javafx.stage.FileChooser;
 
-
-
-
-
-
-
-
-
-
-
-import java.awt.Desktop;
-import java.io.File;
-import java.io.IOException;
-import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import javafx.application.Application;
-import javafx.event.ActionEvent;
-import javafx.event.EventHandler;
-import javafx.geometry.Insets;
-import javafx.scene.Scene;
-import javafx.scene.control.Button;
-import javafx.scene.layout.GridPane;
-import javafx.scene.layout.Pane;
-import javafx.scene.layout.VBox;
-import javafx.stage.FileChooser;
-import javafx.stage.Stage;
-
-
-
-
 public class MainGridController extends CController {
-	
-	private ArrayList<Integer> IdsByIndex = new ArrayList<Integer>();
-	
-	
-	
-	public void run(){
 
-		
-		BorderPane border = new BorderPane();
+	private ArrayList<Integer> IdsByIndex = new ArrayList<Integer>();
+	// private Desktop desktop = Desktop.getDesktop();
+	private int selectedTreeItemId;
+	BorderPane border;
+
+	public void run() {
+
+		border = new BorderPane();
 		HBox hbox = addHBox();
 		border.setTop(hbox);
-		try {
-			border.setLeft(getTreeCategory());
-			border.setRight(getTreeCategory());
-		} catch (ClassNotFoundException | SQLException e) {
-			e.printStackTrace();
-		}
-		
+		border.setLeft(getTreeCategory());
+		border.setRight(getTreeCategory());
+
 		border.setCenter(addGridPane());
-		//border.setRight(addFlowPane());
+		// border.setRight(addFlowPane());
 
-		
-		
-		
-		if(scene == null)
+		if (scene == null)
 			scene = new Scene(border, 800, 600);
-		
 
-		primaryStage.setTitle("MainGrid:"+CUser.getFIO());
+		primaryStage.setTitle("MainGrid:" + CUser.getFIO());
 		primaryStage.setScene(scene);
 		primaryStage.setResizable(true);
 		primaryStage.show();
 		primaryStage.setX(50);
 		primaryStage.setY(50);
 	}
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	@SuppressWarnings("rawtypes")
-	public TreeView<MyTreeNote> getTreeCategory() throws ClassNotFoundException, SQLException {
 
-	//	Node rootIcon = new ImageView(new Image(getClass().getResourceAsStream("folder_16.png")));
-		
-		final TreeItem<MyTreeNote> rootItem = new TreeItem<MyTreeNote>(new MyTreeNote(1,"Main"));
+	@SuppressWarnings("rawtypes")
+	public TreeView<MyTreeNote> getTreeCategory() {
+
+		// Node rootIcon = new ImageView(new
+		// Image(getClass().getResourceAsStream("folder_16.png")));
+
+		final TreeItem<MyTreeNote> rootItem = new TreeItem<MyTreeNote>(new MyTreeNote(1, "Main"));
 		rootItem.setExpanded(true);
-		
+
 		for (Map.Entry entry : getCategoryChild(0).entrySet()) {
 			IdsByIndex.add((int) entry.getKey());
 			TreeItem<MyTreeNote> firstElementh = new TreeItem<MyTreeNote>((MyTreeNote) entry.getValue());
 			firstElementh.setExpanded(false);
 			for (Map.Entry entryDeeper : getCategoryChild((int) entry.getKey()).entrySet()) {
 				IdsByIndex.add((int) entryDeeper.getKey());
-				TreeItem<MyTreeNote> item = new TreeItem<MyTreeNote>((MyTreeNote)entryDeeper.getValue());
+				TreeItem<MyTreeNote> item = new TreeItem<MyTreeNote>((MyTreeNote) entryDeeper.getValue());
 				firstElementh.getChildren().add(item);
 			}
 			rootItem.getChildren().add(firstElementh);
-		}		
-		
-		
-		//tree.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
-		//	//System.out.println(observable);
-		//	//MyTreeItem<String> selectedItem = tree.getSelectionModel().getSelectedItem();
-		//	MyTreeItem<String> selectedItem = (MyTreeItem<String>) tree.getSelectionModel().getSelectedItem();
-		//	System.out.println(selectedItem);
-		//	/*int index = selectedItem.getParent().getChildren().indexOf(selectedItem);
-		//	System.out.println(newValue);
-		//	System.out.println(IdsByIndex.get(index));
-		//	System.out.println(index);
-		//});
-		
-		
-		
-		TreeView<MyTreeNote> tree = new TreeView<MyTreeNote>(rootItem);
-		
-		
-		
-		tree.setCellFactory(tv ->  {
-	        TreeCell<MyTreeNote> cell = new TreeCell<MyTreeNote>() {
-	        	 @Override
-	        	 protected void updateItem(MyTreeNote item, boolean empty) {
-	        	     super.updateItem(item, empty);
+		}
 
-	        	     if (empty || item == null) {
-	        	         setText(null);
-	        	         setGraphic(null);
-	        	     } else {
-	        	         setText(item.toString());
-	        	     }
-	        	 }
-	        };
-	        cell.setOnMouseClicked(e -> {
-	            if (e.getClickCount() == 2 && ! cell.isEmpty()) {
-	            	MyTreeNote file = cell.getItem();
-	            	System.out.println(file.getId());
-	            	System.out.println("11"+CUserRules.get(0, "MainGrid"));
-	            	System.out.println("11"+CUserRules.get(1, "MainGrid"));
-	            	System.out.println("11"+CUserRules.get(2, "MainGrid"));
-	            }
-	        });
-	        return cell ;
-	    });
-		
+		TreeView<MyTreeNote> tree = new TreeView<MyTreeNote>(rootItem);
+
+		tree.setCellFactory(tv -> {
+			TreeCell<MyTreeNote> cell = new TreeCell<MyTreeNote>() {
+				@Override
+				protected void updateItem(MyTreeNote item, boolean empty) {
+					super.updateItem(item, empty);
+
+					if (empty || item == null) {
+						setText(null);
+						setGraphic(null);
+					} else {
+						setText(item.toString());
+					}
+				}
+			};
+			cell.setOnMouseClicked(e -> {
+				if (e.getClickCount() == 2 && !cell.isEmpty()) {
+					MyTreeNote file = cell.getItem();
+
+					selectedTreeItemId = file.getId();
+					/*
+					 * System.out.println(file.getId());
+					 * System.out.println("11"+CUserRules.get(0, "MainGrid"));
+					 * System.out.println("11"+CUserRules.get(1, "MainGrid"));
+					 * System.out.println("11"+CUserRules.get(2, "MainGrid"));
+					 */
+				}
+			});
+			return cell;
+		});
+
 		return tree;
 	}
-	
-	
-	
-	
-	
 
-	private Map<Integer, MyTreeNote> getCategoryChild(int parent) throws ClassNotFoundException, SQLException {
-		ResultSet resSet = DB.exSelect("select * from categories where parent = "+parent);
+	private Map<Integer, MyTreeNote> getCategoryChild(int parent) {
+		ResultSet resSet = DB.exSelect("select * from categories where parent = " + parent);
 		Map<Integer, MyTreeNote> Result = new HashMap<Integer, MyTreeNote>();
-		while(resSet.next())
-		{
-			MyTreeNote data = new MyTreeNote(resSet.getInt("id"), resSet.getString("title"));
-			Result.put(Integer.valueOf(resSet.getString("id")),data);
+		try {
+			while (resSet.next()) {
+				MyTreeNote data = new MyTreeNote(resSet.getInt("id"), resSet.getString("title"));
+				Result.put(Integer.valueOf(resSet.getString("id")), data);
+			}
+		} catch (NumberFormatException | SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
 		return Result;
 	}
-	
-	
-	private Desktop desktop = Desktop.getDesktop();
-	
-	private void openFile(File file) {
-        try {
-            desktop.open(file);
-        } catch (IOException ex) {
-            Logger.getLogger(
-            		MainGridController.class.getName()).log(
-                    Level.SEVERE, null, ex
-                );
-        }
-    }
-	
-	
-	
-	public HBox addHBox() {
-	    HBox hbox = new HBox();
-	    hbox.setPadding(new Insets(15, 12, 15, 12));
-	    hbox.setSpacing(10);
-	    hbox.setStyle("-fx-background-color: #336699;");
 
-	    Button bMain = new Button("Главная");
-	    bMain.setPrefSize(100, 20);
-	    hbox.getChildren().add(bMain);
-	    
-	    if(CUserRules.get("Actions.FullAdd") ){
-		    Button bCreate = new Button("Добавить");
-		    bCreate.setPrefSize(100, 20);
-		    hbox.getChildren().add(bCreate);
-		    
-		    
-		    
-		    bCreate.setOnAction(new EventHandler<ActionEvent>() {
+	/*
+	 * private void openFile(File file) { try { desktop.open(file); } catch
+	 * (IOException ex) {
+	 * Logger.getLogger(MainGridController.class.getName()).log(Level.SEVERE,
+	 * null, ex); } }
+	 */
+
+	public HBox addHBox() {
+		HBox hbox = new HBox();
+		hbox.setPadding(new Insets(15, 12, 15, 12));
+		hbox.setSpacing(10);
+		hbox.setStyle("-fx-background-color: #336699;");
+
+		Button bMain = new Button("Главная");
+		bMain.setPrefSize(100, 20);
+		hbox.getChildren().add(bMain);
+
+		if (CUserRules.get("Actions.FullAdd")) {
+			Button bCreate = new Button("Добавить");
+			bCreate.setPrefSize(100, 20);
+			hbox.getChildren().add(bCreate);
+
+			bCreate.setOnAction(new EventHandler<ActionEvent>() {
 				public void handle(ActionEvent e) {
-					FileChooser fileChooser = new FileChooser();
-				    fileChooser.setTitle("Open Resource File");
-				    
-					
-                    File file = fileChooser.showOpenDialog(primaryStage);
-                    if (file != null) {
-                        openFile(file);
-                    }
-                    
-                    
-					
+					if (selectedTreeItemId > 0) {
+
+						FileChooser fileChooser = new FileChooser();
+						fileChooser.setTitle("Открыть файл");
+						if (CApplication.LastFilePath.equals("NULL")) {
+							fileChooser.setInitialDirectory(new File(System.getProperty("user.home")));
+						} else {
+							fileChooser.setInitialDirectory(new File(CApplication.LastFilePath));
+						}
+						/*
+						 * 0 - файл не открыт 1 - файл не того формата 2 -
+						 * сработала отмена
+						 */
+						int isOpenedFile = 0;
+						do {
+							File file = fileChooser.showOpenDialog(primaryStage);
+							if (file != null) {
+								CApplication.LastFilePath = file.getParent();
+
+								System.out.println(file);
+								System.out.println("File size:" + file.length() + " B");
+								System.out.println("File path:" + file);
+								System.out.println("File name:" + file.getName());
+								String extension = "";
+								int i = file.getName().lastIndexOf('.');
+								int p = Math.max(file.getName().lastIndexOf('/'), file.getName().lastIndexOf('\\'));
+								if (i > p) {
+									extension = file.getName().substring(i + 1);
+								}
+								System.out.println("File ext:" + extension + ":");
+
+								if (!CValidations.isGoodExt(selectedTreeItemId, extension)) {
+									isOpenedFile = 0;
+									continue;
+								} else {
+									isOpenedFile = 1;
+								}
+								String newFileTitle = CApplication.getTimestampString() + "." + extension;
+								File dest = new File(
+										FilesModel.createFolderIsNotExist("//data//" + CUser.getId() + "//")
+												+ newFileTitle);
+
+								try {
+									copyFileUsingJava7Files(file, dest);
+
+									PreparedStatement stmt = DB.conn.prepareStatement(
+											"INSERT INTO files (author, category,title,originalTitle,originalExt) VALUES (?,?,?,?,?);");
+
+									stmt.setInt(1, CUser.getId());
+									stmt.setInt(2, selectedTreeItemId);
+									stmt.setString(3, newFileTitle);
+									stmt.setString(4, file.getName());
+									stmt.setString(5, extension);
+									stmt.execute();
+									// FilesModel.getPathToFile(CUser.getId(),newFileTitle);
+
+									border.setCenter(addGridPane());
+								} catch (IOException e1) {
+									e1.printStackTrace();
+								} catch (SQLException e1) {
+									e1.printStackTrace();
+								}
+
+							} else {
+								isOpenedFile = 1;
+							}
+						} while (isOpenedFile == 0);
+
+					}
+
 				}
 			});
-		    
-	   }
-	    
-	    
-	    
-	    
-	    Button bExit = new Button("Выйти");
-	    bExit.setPrefSize(100, 20);
-	    hbox.getChildren().add(bExit);
 
-	    
-	    bExit.setOnAction(new EventHandler<ActionEvent>() {
+		}
+
+		Button bExit = new Button("Выйти");
+		bExit.setPrefSize(100, 20);
+		hbox.getChildren().add(bExit);
+
+		bExit.setOnAction(new EventHandler<ActionEvent>() {
 			public void handle(ActionEvent e) {
 				CController loginController = new LoginController();
 				loginController.setPrevScene(primaryStage);
@@ -261,74 +247,86 @@ public class MainGridController extends CController {
 
 			}
 		});
-	    
-	    return hbox;
+
+		return hbox;
 	}
-	
 
+	private static void copyFileUsingJava7Files(File source, File dest) throws IOException {
+		Files.copy(source.toPath(), dest.toPath());
+	}
 
-	
-	
-	
 	public GridPane addGridPane() {
-	    GridPane grid = new GridPane();
-	    grid.setHgap(10);
-	    grid.setVgap(10);
-	    grid.setPadding(new Insets(0, 10, 0, 10));
+		GridPane grid = new GridPane();
+		grid.setHgap(10);
+		grid.setVgap(10);
+		grid.setPadding(new Insets(0, 10, 0, 10));
 
-	    // Category in column 2, row 1
-	    Text category = new Text("Sales:");
-	    category.setFont(Font.font("Arial", FontWeight.BOLD, 20));
-	    grid.add(category, 1, 0); 
+		// Category in column 2, row 1
+		Text category = new Text("Sales:");
+		category.setFont(Font.font("Arial", FontWeight.BOLD, 20));
+		grid.add(category, 1, 0);
 
-	    // Title in column 3, row 1
-	    Text chartTitle = new Text("Current Year");
-	    chartTitle.setFont(Font.font("Arial", FontWeight.BOLD, 20));
-	    grid.add(chartTitle, 2, 0);
+		// Title in column 3, row 1
+		Text chartTitle = new Text("Current Year");
+		chartTitle.setFont(Font.font("Arial", FontWeight.BOLD, 20));
+		grid.add(chartTitle, 2, 0);
 
-	    // Subtitle in columns 2-3, row 2
-	    Text chartSubtitle = new Text("Goods and Services");
-	    grid.add(chartSubtitle, 1, 1, 2, 1);
+		// Subtitle in columns 2-3, row 2
+		Text chartSubtitle = new Text("Goods and Services");
+		grid.add(chartSubtitle, 1, 1, 2, 1);
 
-	   
-	    // Left label in column 1 (bottom), row 3
-	    Text goodsPercent = new Text("Goods\n80%");
-	    GridPane.setValignment(goodsPercent, VPos.BOTTOM);
-	    grid.add(goodsPercent, 0, 2); 
+		// Left label in column 1 (bottom), row 3
+		Text goodsPercent = new Text("Goods\n80%");
+		GridPane.setValignment(goodsPercent, VPos.BOTTOM);
+		grid.add(goodsPercent, 0, 2);
 
-	    // Right label in column 4 (top), row 3
-	    Text servicesPercent = new Text("Services\n20%");
-	    GridPane.setValignment(servicesPercent, VPos.TOP);
-	    grid.add(servicesPercent, 3, 2);
+		// Right label in column 4 (top), row 3
+		Text servicesPercent = new Text("Services\n20%");
+		GridPane.setValignment(servicesPercent, VPos.TOP);
+		grid.add(servicesPercent, 3, 2);
 
-	    return grid;
+		ResultSet resSet = DB.exSelect("select * from files");
+
+		try {
+			for (int j = 0; resSet.next(); j++) {
+				Image image = new Image(
+						"file:" + FilesModel.getPathToFile(resSet.getInt("author"), resSet.getString("title")));
+				ImageView iv2 = new ImageView();
+				iv2.setImage(image);
+				iv2.setFitWidth(100);
+				iv2.setPreserveRatio(true);
+				iv2.setSmooth(true);
+				iv2.setCache(true);
+				grid.add(iv2, 1+j%3, 3 + j/3);
+			}
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		return grid;
 	}
-	
-	
-	
-	
-	
-	
-	
-	
-	public class MyTreeNote{
+
+	public class MyTreeNote {
 		private String title;
 		private Integer id;
-		public MyTreeNote(int id, String title){
+
+		public MyTreeNote(int id, String title) {
 			this.title = title;
 			this.id = id;
 		}
-		public String toString(){
+
+		public String toString() {
 			return this.title;
 		}
-		public Integer getId(){
+
+		public Integer getId() {
 			return id;
 		}
-		public String getTitle(){
+
+		public String getTitle() {
 			return this.title;
 		}
 	}
-	
-	
-	
+
 }

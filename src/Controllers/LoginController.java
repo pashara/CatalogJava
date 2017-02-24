@@ -6,7 +6,6 @@ import java.sql.SQLException;
 
 import Core.CController;
 import Core.CUser;
-import Core.CUserRules;
 import Core.MD5;
 import db.DB;
 import javafx.event.ActionEvent;
@@ -25,9 +24,6 @@ import javafx.scene.text.Text;
 
 public class LoginController extends CController {
 	public void run() {
-
-		
-		
 		primaryStage.setResizable(false);
 		BorderPane root = new BorderPane();
 		Scene scene = new Scene(root, 330, 150);
@@ -37,7 +33,7 @@ public class LoginController extends CController {
 		gridpane.setHgap(5);
 		gridpane.setVgap(5);
 		gridpane.setAlignment(Pos.CENTER);
-		//gridpane.setGridLinesVisible(true);
+		// gridpane.setGridLinesVisible(true);
 		for (int i = 0; i < 2; i++) {
 			ColumnConstraints column = new ColumnConstraints();
 			column.setPercentWidth(100 / 3.0);
@@ -46,17 +42,16 @@ public class LoginController extends CController {
 		Label lLogin = new Label("Логин");
 		Label lPassword = new Label("Пароль");
 		Label lRemember = new Label("Запомнить");
-		//CheckBox chRemember = new CheckBox();
+		// CheckBox chRemember = new CheckBox();
 		TextField fLogin = new TextField();
 		fLogin.setPromptText("Введите логин");
 		PasswordField fPassword = new PasswordField();
 		fPassword.setPromptText("Введите пароль");
-		
+
 		Button bLogin = new Button("Войти");
 		Button bLoginGuest = new Button("Войти как гость");
 		Text ErrorText = new Text();
-		
-		
+
 		gridpane.add(lLogin, 0, 0);
 		gridpane.add(lPassword, 0, 1);
 		gridpane.add(lRemember, 0, 2);
@@ -65,36 +60,35 @@ public class LoginController extends CController {
 		gridpane.add(bLogin, 2, 2);
 		gridpane.add(bLoginGuest, 2, 3);
 
-		//gridpane.add(chRemember, 1, 2);
+		// gridpane.add(chRemember, 1, 2);
 		gridpane.add(ErrorText, 0, 3, 2, 1);
-		
 
 		bLogin.setOnAction(new EventHandler<ActionEvent>() {
 			public void handle(ActionEvent e) {
 				try {
-					
-					PreparedStatement stmt = DB.conn.prepareStatement("SELECT count(*) as COUNT FROM users WHERE username=? AND password=?");
+
+					PreparedStatement stmt = DB.conn
+							.prepareStatement("SELECT count(*) as COUNT FROM users WHERE username=? AND password=?");
 					stmt.setString(1, fLogin.getText());
 					stmt.setString(2, MD5.grnerate(fPassword.getText()));
 					ResultSet rs = stmt.executeQuery();
-					
-					if(rs.getInt("COUNT") == 1){
+
+					if (rs.getInt("COUNT") == 1) {
 						fPassword.setText("");
 						CUser.loginByUsername(fLogin.getText());
 						CController gridController = new MainGridController();
 						gridController.setPrevScene(primaryStage);
 						gridController.run();
-					}else{
+					} else {
 						ErrorText.setText("Неправильный логин или пароль");
 					}
-					
-					
+
 				} catch (SQLException e1) {
 					e1.printStackTrace();
 				}
 			}
 		});
-		
+
 		bLoginGuest.setOnAction(new EventHandler<ActionEvent>() {
 			public void handle(ActionEvent e) {
 				CUser.setUserGuest();
@@ -111,18 +105,18 @@ public class LoginController extends CController {
 		fPassword.textProperty().addListener((observable, oldValue, newValue) -> {
 			ErrorText.setText("");
 		});
-		
+
 		root.setCenter(gridpane);
 		primaryStage.setScene(scene);
 		primaryStage.show();
-		
 
-    	System.out.println("11"+CUserRules.get(0, "MainGrid"));
-    	System.out.println("11"+CUserRules.get(1, "MainGrid"));
-    	System.out.println("11"+CUserRules.get(2, "MainGrid"));
-    	
 		/*
-		 * primaryStage.setResizable(false); BorderPane root = new BorderPane();
+		 * System.out.println("11"+CUserRules.get(0, "MainGrid"));
+		 * System.out.println("11"+CUserRules.get(1, "MainGrid"));
+		 * System.out.println("11"+CUserRules.get(2, "MainGrid"));
+		 * 
+		 * /* primaryStage.setResizable(false); BorderPane root = new
+		 * BorderPane();
 		 * 
 		 * GridPane grid = new GridPane(); grid.setHgap(10); grid.setVgap(10);
 		 * grid.setPadding(new Insets(0, 10, 0, 10));
