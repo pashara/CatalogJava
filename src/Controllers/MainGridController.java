@@ -1,6 +1,7 @@
 package Controllers;
 
-import java.sql.PreparedStatement;
+import java.io.File;
+import java.io.IOException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -8,33 +9,55 @@ import java.util.HashMap;
 import java.util.Map;
 
 import Core.CController;
-import Core.MD5;
+import Core.CUser;
+import Core.CUserRules;
 import db.DB;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
-import javafx.geometry.Pos;
 import javafx.geometry.VPos;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
-import javafx.scene.control.Hyperlink;
 import javafx.scene.control.TreeCell;
 import javafx.scene.control.TreeItem;
 import javafx.scene.control.TreeView;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.StackPane;
-import javafx.scene.layout.VBox;
-import javafx.scene.paint.Color;
-import javafx.scene.paint.CycleMethod;
-import javafx.scene.paint.LinearGradient;
-import javafx.scene.paint.Stop;
-import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
+import javafx.stage.FileChooser;
+
+
+
+
+
+
+
+
+
+
+
+import java.awt.Desktop;
+import java.io.File;
+import java.io.IOException;
+import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import javafx.application.Application;
+import javafx.event.ActionEvent;
+import javafx.event.EventHandler;
+import javafx.geometry.Insets;
+import javafx.scene.Scene;
+import javafx.scene.control.Button;
+import javafx.scene.layout.GridPane;
+import javafx.scene.layout.Pane;
+import javafx.scene.layout.VBox;
+import javafx.stage.FileChooser;
+import javafx.stage.Stage;
+
+
 
 
 public class MainGridController extends CController {
@@ -66,7 +89,7 @@ public class MainGridController extends CController {
 			scene = new Scene(border, 800, 600);
 		
 
-		primaryStage.setTitle("MainGrid");
+		primaryStage.setTitle("MainGrid:"+CUser.getFIO());
 		primaryStage.setScene(scene);
 		primaryStage.setResizable(true);
 		primaryStage.show();
@@ -88,6 +111,7 @@ public class MainGridController extends CController {
 	
 	
 	
+	@SuppressWarnings("rawtypes")
 	public TreeView<MyTreeNote> getTreeCategory() throws ClassNotFoundException, SQLException {
 
 	//	Node rootIcon = new ImageView(new Image(getClass().getResourceAsStream("folder_16.png")));
@@ -143,6 +167,9 @@ public class MainGridController extends CController {
 	            if (e.getClickCount() == 2 && ! cell.isEmpty()) {
 	            	MyTreeNote file = cell.getItem();
 	            	System.out.println(file.getId());
+	            	System.out.println("11"+CUserRules.get(0, "MainGrid"));
+	            	System.out.println("11"+CUserRules.get(1, "MainGrid"));
+	            	System.out.println("11"+CUserRules.get(2, "MainGrid"));
 	            }
 	        });
 	        return cell ;
@@ -168,24 +195,65 @@ public class MainGridController extends CController {
 	}
 	
 	
+	private Desktop desktop = Desktop.getDesktop();
+	
+	private void openFile(File file) {
+        try {
+            desktop.open(file);
+        } catch (IOException ex) {
+            Logger.getLogger(
+            		MainGridController.class.getName()).log(
+                    Level.SEVERE, null, ex
+                );
+        }
+    }
+	
+	
+	
 	public HBox addHBox() {
 	    HBox hbox = new HBox();
 	    hbox.setPadding(new Insets(15, 12, 15, 12));
 	    hbox.setSpacing(10);
 	    hbox.setStyle("-fx-background-color: #336699;");
 
-	    Button buttonCurrent = new Button("Current");
-	    buttonCurrent.setPrefSize(100, 20);
-
-	    Button buttonProjected = new Button("Projected");
-	    buttonProjected.setPrefSize(100, 20);
+	    Button bMain = new Button("Главная");
+	    bMain.setPrefSize(100, 20);
+	    hbox.getChildren().add(bMain);
 	    
-	    Button buttonExit = new Button("Выйти");
-	    buttonExit.setPrefSize(100, 20);
-	    hbox.getChildren().addAll(buttonCurrent, buttonProjected,buttonExit);
+	    if(CUserRules.get("Actions.FullAdd") ){
+		    Button bCreate = new Button("Добавить");
+		    bCreate.setPrefSize(100, 20);
+		    hbox.getChildren().add(bCreate);
+		    
+		    
+		    
+		    bCreate.setOnAction(new EventHandler<ActionEvent>() {
+				public void handle(ActionEvent e) {
+					FileChooser fileChooser = new FileChooser();
+				    fileChooser.setTitle("Open Resource File");
+				    
+					
+                    File file = fileChooser.showOpenDialog(primaryStage);
+                    if (file != null) {
+                        openFile(file);
+                    }
+                    
+                    
+					
+				}
+			});
+		    
+	   }
+	    
+	    
+	    
+	    
+	    Button bExit = new Button("Выйти");
+	    bExit.setPrefSize(100, 20);
+	    hbox.getChildren().add(bExit);
 
 	    
-		buttonExit.setOnAction(new EventHandler<ActionEvent>() {
+	    bExit.setOnAction(new EventHandler<ActionEvent>() {
 			public void handle(ActionEvent e) {
 				CController loginController = new LoginController();
 				loginController.setPrevScene(primaryStage);

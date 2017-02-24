@@ -5,6 +5,8 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 
 import Core.CController;
+import Core.CUser;
+import Core.CUserRules;
 import Core.MD5;
 import db.DB;
 import javafx.event.ActionEvent;
@@ -13,7 +15,6 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
-import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
@@ -45,13 +46,14 @@ public class LoginController extends CController {
 		Label lLogin = new Label("Логин");
 		Label lPassword = new Label("Пароль");
 		Label lRemember = new Label("Запомнить");
-		CheckBox chRemember = new CheckBox();
+		//CheckBox chRemember = new CheckBox();
 		TextField fLogin = new TextField();
 		fLogin.setPromptText("Введите логин");
 		PasswordField fPassword = new PasswordField();
 		fPassword.setPromptText("Введите пароль");
 		
 		Button bLogin = new Button("Войти");
+		Button bLoginGuest = new Button("Войти как гость");
 		Text ErrorText = new Text();
 		
 		
@@ -61,8 +63,9 @@ public class LoginController extends CController {
 		gridpane.add(fLogin, 1, 0, 2, 1);
 		gridpane.add(fPassword, 1, 1, 2, 1);
 		gridpane.add(bLogin, 2, 2);
+		gridpane.add(bLoginGuest, 2, 3);
 
-		gridpane.add(chRemember, 1, 2);
+		//gridpane.add(chRemember, 1, 2);
 		gridpane.add(ErrorText, 0, 3, 2, 1);
 		
 
@@ -77,6 +80,7 @@ public class LoginController extends CController {
 					
 					if(rs.getInt("COUNT") == 1){
 						fPassword.setText("");
+						CUser.loginByUsername(fLogin.getText());
 						CController gridController = new MainGridController();
 						gridController.setPrevScene(primaryStage);
 						gridController.run();
@@ -91,6 +95,15 @@ public class LoginController extends CController {
 			}
 		});
 		
+		bLoginGuest.setOnAction(new EventHandler<ActionEvent>() {
+			public void handle(ActionEvent e) {
+				CUser.setUserGuest();
+				CController gridController = new MainGridController();
+				gridController.setPrevScene(primaryStage);
+				gridController.run();
+
+			}
+		});
 
 		fLogin.textProperty().addListener((observable, oldValue, newValue) -> {
 			ErrorText.setText("");
@@ -103,7 +116,11 @@ public class LoginController extends CController {
 		primaryStage.setScene(scene);
 		primaryStage.show();
 		
-		
+
+    	System.out.println("11"+CUserRules.get(0, "MainGrid"));
+    	System.out.println("11"+CUserRules.get(1, "MainGrid"));
+    	System.out.println("11"+CUserRules.get(2, "MainGrid"));
+    	
 		/*
 		 * primaryStage.setResizable(false); BorderPane root = new BorderPane();
 		 * 

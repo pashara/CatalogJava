@@ -1,6 +1,7 @@
 import java.sql.SQLException;
 
 import Core.CApplication;
+import Core.CUserRules;
 import db.DB;
 import javafx.application.Application;
 import javafx.stage.Stage;
@@ -27,6 +28,7 @@ public class Starter extends Application {
 
 	private static void beforeStartApplication() throws ClassNotFoundException, SQLException{
 		DB.Conn();
+		CUserRules.init();
 	}
 
 
