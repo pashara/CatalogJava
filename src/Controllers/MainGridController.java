@@ -1,5 +1,6 @@
 package Controllers;
 
+import java.awt.Desktop;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -8,7 +9,10 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import Core.CApplication;
 import Core.CController;
@@ -21,35 +25,57 @@ import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.geometry.VPos;
+import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.control.ContextMenu;
+import javafx.scene.control.MenuItem;
+import javafx.scene.control.Pagination;
 import javafx.scene.control.TreeCell;
 import javafx.scene.control.TreeItem;
 import javafx.scene.control.TreeView;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.input.MouseButton;
+import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.AnchorPane;
+import javafx.scene.layout.Border;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.BorderStroke;
+import javafx.scene.layout.BorderStrokeStyle;
+import javafx.scene.layout.BorderWidths;
+import javafx.scene.layout.ColumnConstraints;
+import javafx.scene.layout.CornerRadii;
+import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
 import javafx.stage.FileChooser;
+import javafx.util.Callback;
 
 public class MainGridController extends CController {
 
 	private ArrayList<Integer> IdsByIndex = new ArrayList<Integer>();
-	// private Desktop desktop = Desktop.getDesktop();
+	private Desktop desktop = Desktop.getDesktop();
 	private int selectedTreeItemId;
 	BorderPane border;
+	
+	private int ItemsSellectedPage = 1;
+	private int ItemsPerPage = 3;
+	private int ItemsPages = 0;
+	
 
 	public void run() {
 
 		border = new BorderPane();
 		HBox hbox = addHBox();
 		border.setTop(hbox);
+		
 		border.setLeft(getTreeCategory());
-		border.setRight(getTreeCategory());
+		//border.setRight(getTreeCategory());
 
 		border.setCenter(addGridPane());
 		// border.setRight(addFlowPane());
@@ -136,12 +162,13 @@ public class MainGridController extends CController {
 		return Result;
 	}
 
-	/*
-	 * private void openFile(File file) { try { desktop.open(file); } catch
-	 * (IOException ex) {
-	 * Logger.getLogger(MainGridController.class.getName()).log(Level.SEVERE,
-	 * null, ex); } }
-	 */
+	private void openFile(File file) {
+		try {
+			desktop.open(file);
+		} catch (IOException ex) {
+			Logger.getLogger(MainGridController.class.getName()).log(Level.SEVERE, null, ex);
+		}
+	}
 
 	public HBox addHBox() {
 		HBox hbox = new HBox();
@@ -163,12 +190,14 @@ public class MainGridController extends CController {
 					if (selectedTreeItemId > 0) {
 
 						FileChooser fileChooser = new FileChooser();
-						fileChooser.setTitle("Открыть файл");
+						fileChooser.setTitle("Открыть файл1");
 						if (CApplication.LastFilePath.equals("NULL")) {
 							fileChooser.setInitialDirectory(new File(System.getProperty("user.home")));
 						} else {
 							fileChooser.setInitialDirectory(new File(CApplication.LastFilePath));
 						}
+						fileChooser.setSelectedExtensionFilter(new FileChooser.ExtensionFilter("AllFormatss", "xls"));
+						
 						/*
 						 * 0 - файл не открыт 1 - файл не того формата 2 -
 						 * сработала отмена
@@ -206,13 +235,14 @@ public class MainGridController extends CController {
 									copyFileUsingJava7Files(file, dest);
 
 									PreparedStatement stmt = DB.conn.prepareStatement(
-											"INSERT INTO files (author, category,title,originalTitle,originalExt) VALUES (?,?,?,?,?);");
+											"INSERT INTO files (author, category,title,originalTitle,originalExt,size) VALUES (?,?,?,?,?,?);");
 
 									stmt.setInt(1, CUser.getId());
 									stmt.setInt(2, selectedTreeItemId);
 									stmt.setString(3, newFileTitle);
 									stmt.setString(4, file.getName());
 									stmt.setString(5, extension);
+									stmt.setInt(6, (int)file.length());
 									stmt.execute();
 									// FilesModel.getPathToFile(CUser.getId(),newFileTitle);
 
@@ -259,52 +289,91 @@ public class MainGridController extends CController {
 		GridPane grid = new GridPane();
 		grid.setHgap(10);
 		grid.setVgap(10);
+		grid.setGridLinesVisible(true);
 		grid.setPadding(new Insets(0, 10, 0, 10));
+		getPlaneOfFiles();
 
-		// Category in column 2, row 1
-		Text category = new Text("Sales:");
-		category.setFont(Font.font("Arial", FontWeight.BOLD, 20));
-		grid.add(category, 1, 0);
-
-		// Title in column 3, row 1
-		Text chartTitle = new Text("Current Year");
-		chartTitle.setFont(Font.font("Arial", FontWeight.BOLD, 20));
-		grid.add(chartTitle, 2, 0);
-
-		// Subtitle in columns 2-3, row 2
-		Text chartSubtitle = new Text("Goods and Services");
-		grid.add(chartSubtitle, 1, 1, 2, 1);
-
-		// Left label in column 1 (bottom), row 3
-		Text goodsPercent = new Text("Goods\n80%");
-		GridPane.setValignment(goodsPercent, VPos.BOTTOM);
-		grid.add(goodsPercent, 0, 2);
-
-		// Right label in column 4 (top), row 3
-		Text servicesPercent = new Text("Services\n20%");
-		GridPane.setValignment(servicesPercent, VPos.TOP);
-		grid.add(servicesPercent, 3, 2);
-
-		ResultSet resSet = DB.exSelect("select * from files");
-
-		try {
-			for (int j = 0; resSet.next(); j++) {
-				Image image = new Image(
-						"file:" + FilesModel.getPathToFile(resSet.getInt("author"), resSet.getString("title")));
-				ImageView iv2 = new ImageView();
-				iv2.setImage(image);
-				iv2.setFitWidth(100);
-				iv2.setPreserveRatio(true);
-				iv2.setSmooth(true);
-				iv2.setCache(true);
-				grid.add(iv2, 1+j%3, 3 + j/3);
-			}
-		} catch (SQLException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+		ColumnConstraints column1 = new ColumnConstraints();
+		column1.setPercentWidth(100);
+		grid.getColumnConstraints().add(column1);
+		
+		
+		
+		
+		
+		AnchorPane anchor = new AnchorPane();
+		Pagination pagination = new Pagination(this.ItemsPages);
+		pagination.setPageFactory(new Callback<Integer, Node>() {
+			 
+            public Node call(Integer pageIndex) {
+                if (pageIndex >= ItemsPages) {
+                    return null;
+                } else {
+                	ItemsSellectedPage = pageIndex;
+                	System.out.println();
+                    return getPlaneOfFiles();
+                }
+            }
+        });
+        anchor.getChildren().addAll(pagination);
+		grid.add(anchor, 0, 1);
 
 		return grid;
+	}
+	
+	private FlowPane getPlaneOfFiles(){
+
+		List<String[]> imagesFromDB = new ArrayList<>();
+		int imagesForOutputNumber = 0;
+		try {
+			
+			ResultSet resSet;
+			
+			
+			String WHEREsollution;
+			if(!CUserRules.get("Actions.FullAccessToFiles"))
+				WHEREsollution = "WHERE author = "+CUser.getId();
+			else
+				WHEREsollution = "";
+			
+			int FilesCount = DB.exSelect("select COUNT(*) as count from files "+WHEREsollution).getInt("count");
+			this.ItemsPages = (FilesCount-1)/this.ItemsPerPage + 1;
+			Integer start = (this.ItemsSellectedPage)*this.ItemsPerPage;
+			resSet = DB.exSelect("select * from files "+WHEREsollution +" LIMIT "+ start +", "+ItemsPerPage);
+			
+			for (imagesForOutputNumber = 0; resSet.next(); imagesForOutputNumber++) {
+				String data[] = { resSet.getString("id"), resSet.getString("author"), resSet.getString("title") };
+				imagesFromDB.add(data);
+			}
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+		
+		
+		FlowPane PhotosPlane = new FlowPane();
+		
+		PhotosPlane.setBorder(new Border(new BorderStroke(Color.BLACK, 
+	           BorderStrokeStyle.SOLID, CornerRadii.EMPTY, BorderWidths.DEFAULT)));
+		PhotosPlane.setHgap(10);
+		PhotosPlane.setVgap(10);
+		for (int j = 0; imagesForOutputNumber > j; j++) {
+			Image image = new Image("file:" + FilesModel.getPathToFile(imagesFromDB.get(j)[0]));
+			ImageView iv2 = new ImageView();
+			iv2.setImage(image);
+			iv2.setFitWidth(200);
+			iv2.setFitHeight(100);
+			iv2.setPreserveRatio(false);
+			iv2.setSmooth(true);
+			iv2.setCache(true);
+			iv2.setId("image_mains_" + imagesFromDB.get(j)[0]);
+			iv2.setOnMouseClicked(event -> {
+				if (event.getClickCount() == 2 && event.getButton() == MouseButton.PRIMARY) {
+					openFile(new File(FilesModel.getPathToFile(iv2.getId().replaceAll("image_mains_", ""))));
+				}
+			});
+			PhotosPlane.getChildren().add(iv2);
+		}
+		return PhotosPlane;
 	}
 
 	public class MyTreeNote {

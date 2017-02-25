@@ -1,10 +1,13 @@
 package Models;
 
 import java.io.File;
+import java.nio.file.AccessDeniedException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Arrays;
 
+import Core.CUser;
+import Core.CUserRules;
 import db.DB;
 
 public class FilesModel {
@@ -24,10 +27,52 @@ public class FilesModel {
 	}
 
 	public static String getPathToFile(Integer id, String title) {
-
 		return System.getProperty("user.dir") + File.separator + dataDir.replace("//", File.separator) + id.toString()
 				+ File.separator + title;
 	}
+
+	/**
+	 * Returns filepath by FileID
+	 *
+	 * @param  FileId  - FileID
+	 * @return Full filepath
+	 */
+	public static String getPathToFile(String FileId) {
+		return getPathToFile(Integer.valueOf(FileId));
+	}
+	
+	
+	
+	/**
+	 * Returns filepath by FileID
+	 *
+	 * @param  FileId  - FileID
+	 * @return Full filepath
+	 */
+	public static String getPathToFile(Integer FileId) {
+		ResultSet ImageInfo = DB.exSelect("select * from files where id ="+FileId);
+		String title = null;
+		Integer authorId = null;
+		try {
+			title = ImageInfo.getString("title");
+			authorId = ImageInfo.getInt("author");
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		if(CUser.getId() == authorId || CUserRules.get("Actions.FullAccessToFiles")){
+			if(title.equals(null)){
+				throw new NullPointerException();
+			}
+		}else{
+			throw new NullPointerException();
+		}
+		
+		return System.getProperty("user.dir") + File.separator + dataDir.replace("//", File.separator) + authorId.toString()
+				+ File.separator + title;
+	}
+	
 
 	/*
 	 * @override Try to find file EXTENTION in base from child to parent 0 -

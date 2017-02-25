@@ -45,6 +45,9 @@ public class CUserRules {
 			 */
 			ForUsers.put("Actions.FullAdd", true);
 			ForAdmins.put("Actions.FullAdd", true);
+			
+
+			ForAdmins.put("Actions.FullAccessToFiles", true);
 
 		}
 	}
