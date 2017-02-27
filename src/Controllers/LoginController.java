@@ -8,7 +8,6 @@ import Core.CApplication;
 import Core.CController;
 import Core.CUser;
 import Core.MD5;
-import Models.FilesModel;
 import db.DB;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
@@ -115,7 +114,7 @@ public class LoginController extends CController {
 		CApplication.daysBeetwen();
 		
 		 
-		CUser.loginByUsername("admin");
+		CUser.loginByUsername("pidor");
 		CController gridController = new MainGridController();
 		gridController.setPrevScene(primaryStage);
 		gridController.run();

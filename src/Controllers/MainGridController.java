@@ -11,81 +11,71 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import Containers.FileItemContainer;
-import Core.CApplication;
-import Core.CController;
-import Core.CUser;
-import Core.CUserRules;
-import Core.CValidations;
+import Core.*;
 import Models.FilesModel;
 import db.DB;
-import javafx.beans.property.ReadOnlyDoubleProperty;
+import javafx.beans.property.ReadOnlyStringWrapper;
+import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
-import javafx.geometry.VPos;
 import javafx.scene.Node;
 import javafx.scene.Scene;
-import javafx.scene.control.Button;
-import javafx.scene.control.ContextMenu;
-import javafx.scene.control.MenuItem;
-import javafx.scene.control.Pagination;
-import javafx.scene.control.TreeCell;
-import javafx.scene.control.TreeItem;
-import javafx.scene.control.TreeView;
+import javafx.scene.control.*;
+import javafx.scene.control.cell.*;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import javafx.scene.input.MouseButton;
-import javafx.scene.input.MouseEvent;
-import javafx.scene.layout.AnchorPane;
-import javafx.scene.layout.Border;
-import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.BorderStroke;
-import javafx.scene.layout.BorderStrokeStyle;
-import javafx.scene.layout.BorderWidths;
-import javafx.scene.layout.ColumnConstraints;
-import javafx.scene.layout.CornerRadii;
-import javafx.scene.layout.FlowPane;
-import javafx.scene.layout.GridPane;
-import javafx.scene.layout.HBox;
-import javafx.scene.paint.Color;
-import javafx.scene.text.Font;
-import javafx.scene.text.FontWeight;
-import javafx.scene.text.Text;
+import javafx.scene.layout.*;
 import javafx.stage.FileChooser;
-import javafx.util.Callback;
 
 public class MainGridController extends CController {
 
 	private ArrayList<Integer> IdsByIndex = new ArrayList<Integer>();
 	private Desktop desktop = Desktop.getDesktop();
 	private Map<Integer, FileItemContainer> files;
-	private int selectedTreeItemId;
+	private int selectedTreeItemId = 1;
 	BorderPane border;
 	GridPane mainGrid;
-	
+
 	private int ItemsSellectedPage = 0;
-	private int ItemsPerPage = 3;
+	private int ItemsPerPage = 10;
 	private int ItemsPages = 0;
-	
+	private Pagination pagination = new Pagination();
+	private AnchorPane mainAncorPane = new AnchorPane();
+
+	final ObservableList<FileItemContainer> data = FXCollections.observableArrayList();
+
+	private Node createDataTable(int pageIndex) {
+		ItemsSellectedPage = pageIndex;
+		pagination.setCurrentPageIndex(pageIndex);
+		return new BorderPane(getPlaneOfFiles());
+	}
 
 	public void run() {
 
 		border = new BorderPane();
 		HBox hbox = addHBox();
 		border.setTop(hbox);
-		
-		border.setLeft(getTreeCategory());
-		//border.setRight(getTreeCategory());
 
-		border.setCenter(addGridPane());
-		//border.setRight(addGridPane());
-		// border.setRight(addFlowPane());
+		border.setLeft(getTreeCategory());
+		// border.setRight(getTreeCategory());
+
+		pagination.setPageFactory(this::createDataTable);
+
+		AnchorPane.setTopAnchor(pagination, 10.0);
+		AnchorPane.setRightAnchor(pagination, 10.0);
+		AnchorPane.setBottomAnchor(pagination, 10.0);
+		AnchorPane.setLeftAnchor(pagination, 10.0);
+		mainAncorPane.getChildren().addAll(pagination);
+		border.setCenter(mainAncorPane);
 
 		if (scene == null)
 			scene = new Scene(border, 800, 600);
@@ -99,16 +89,14 @@ public class MainGridController extends CController {
 	}
 
 	@SuppressWarnings("rawtypes")
-	public TreeView<MyTreeNote> getTreeCategory() {
-
+	public TreeTableView<MyTreeNote> getTreeCategory() {
 		// Node rootIcon = new ImageView(new
 		// Image(getClass().getResourceAsStream("folder_16.png")));
 
-		final TreeItem<MyTreeNote> rootItem = new TreeItem<MyTreeNote>(new MyTreeNote(1, "Main"));
-		rootItem.setExpanded(true);
+		final TreeItem<MyTreeNote> root = new TreeItem<>(new MyTreeNote(0, "Root"));
+		root.setExpanded(true);
 
 		for (Map.Entry entry : getCategoryChild(0).entrySet()) {
-			IdsByIndex.add((int) entry.getKey());
 			TreeItem<MyTreeNote> firstElementh = new TreeItem<MyTreeNote>((MyTreeNote) entry.getValue());
 			firstElementh.setExpanded(false);
 			for (Map.Entry entryDeeper : getCategoryChild((int) entry.getKey()).entrySet()) {
@@ -116,42 +104,37 @@ public class MainGridController extends CController {
 				TreeItem<MyTreeNote> item = new TreeItem<MyTreeNote>((MyTreeNote) entryDeeper.getValue());
 				firstElementh.getChildren().add(item);
 			}
-			rootItem.getChildren().add(firstElementh);
+			root.getChildren().add(firstElementh);
 		}
 
-		TreeView<MyTreeNote> tree = new TreeView<MyTreeNote>(rootItem);
+		TreeTableColumn<MyTreeNote, String> column = new TreeTableColumn<>("Column");
+		column.setPrefWidth(150);
 
-		tree.setCellFactory(tv -> {
-			TreeCell<MyTreeNote> cell = new TreeCell<MyTreeNote>() {
-				@Override
-				protected void updateItem(MyTreeNote item, boolean empty) {
-					super.updateItem(item, empty);
+		column.setCellValueFactory(
+				(TreeTableColumn.CellDataFeatures<MyTreeNote, String> param) -> new ReadOnlyStringWrapper(
+						param.getValue().getValue().getTitle()));
 
-					if (empty || item == null) {
-						setText(null);
-						setGraphic(null);
-					} else {
-						setText(item.toString());
-					}
-				}
-			};
-			cell.setOnMouseClicked(e -> {
-				if (e.getClickCount() == 2 && !cell.isEmpty()) {
-					MyTreeNote file = cell.getItem();
+		final TreeTableView<MyTreeNote> treeTableView = new TreeTableView<>(root);
+		treeTableView.getColumns().add(column);
+		treeTableView.setPrefWidth(152);
+		treeTableView.setShowRoot(true);
 
-					selectedTreeItemId = file.getId();
-					/*
-					 * System.out.println(file.getId());
-					 * System.out.println("11"+CUserRules.get(0, "MainGrid"));
-					 * System.out.println("11"+CUserRules.get(1, "MainGrid"));
-					 * System.out.println("11"+CUserRules.get(2, "MainGrid"));
-					 */
+		treeTableView.setRowFactory(tv -> {
+			TreeTableRow<MyTreeNote> row = new TreeTableRow<>();
+			row.setOnMouseClicked(event -> {
+				if ((!row.isEmpty()) && selectedTreeItemId != row.getItem().getId()) {
+					selectedTreeItemId = row.getItem().getId();
+					System.out.println("SELECTEEED:"+selectedTreeItemId);
+					createDataTable(0);
+					mainAncorPane.getChildren().add(pagination);
+					//mainAncorPane.clearConstraints(tv);
+					border.setCenter(mainAncorPane);
 				}
 			});
-			return cell;
+			return row;
 		});
 
-		return tree;
+		return treeTableView;
 	}
 
 	private Map<Integer, MyTreeNote> getCategoryChild(int parent) {
@@ -193,7 +176,7 @@ public class MainGridController extends CController {
 			hbox.getChildren().add(bCreate);
 			bCreate.setOnAction(new EventHandler<ActionEvent>() {
 				public void handle(ActionEvent e) {
-					if(!isHavePremissionToAddFile(CUser.getId())){
+					if (!isHavePremissionToAddFile(CUser.getId())) {
 						return;
 					}
 					if (selectedTreeItemId > 0) {
@@ -205,8 +188,9 @@ public class MainGridController extends CController {
 						} else {
 							fileChooser.setInitialDirectory(new File(CApplication.LastFilePath));
 						}
-						//fileChooser.setSelectedExtensionFilter(new FileChooser.ExtensionFilter("AllFormatss", "xls"));
-						
+						// fileChooser.setSelectedExtensionFilter(new
+						// FileChooser.ExtensionFilter("AllFormatss", "xls"));
+
 						/*
 						 * 0 - файл не открыт 1 - файл не того формата 2 -
 						 * сработала отмена
@@ -231,9 +215,8 @@ public class MainGridController extends CController {
 								try {
 									copyFileUsingJava7Files(file, dest);
 
-									SimpleDateFormat ft = new SimpleDateFormat ("dd-MM-yyyy hh:mm:ss");
-									
-									
+									SimpleDateFormat ft = new SimpleDateFormat("dd-MM-yyyy hh:mm:ss");
+
 									PreparedStatement stmt = DB.conn.prepareStatement(
 											"INSERT INTO files (author, category,title,originalTitle,originalExt,size,date) VALUES (?,?,?,?,?,?,?);");
 
@@ -242,11 +225,11 @@ public class MainGridController extends CController {
 									stmt.setString(3, newFileTitle);
 									stmt.setString(4, file.getName());
 									stmt.setString(5, extension);
-									stmt.setInt(6, (int)file.length());
-									stmt.setString(7,ft.format(new Date()));
+									stmt.setInt(6, (int) file.length());
+									stmt.setString(7, ft.format(new Date()));
 									stmt.execute();
 
-									border.setCenter(addGridPane());
+									border.setCenter(createDataTable(isOpenedFile));
 								} catch (IOException e1) {
 									e1.printStackTrace();
 								} catch (SQLException e1) {
@@ -285,116 +268,112 @@ public class MainGridController extends CController {
 		Files.copy(source.toPath(), dest.toPath());
 	}
 
-	public AnchorPane addGridPane() {
-		mainGrid = new GridPane();
-		mainGrid.setHgap(10);
-		mainGrid.setVgap(10);
-		mainGrid.setGridLinesVisible(true);
-		mainGrid.setPadding(new Insets(0, 0, 0, 0));
-		getPlaneOfFiles();
+	@SuppressWarnings({ "rawtypes", "unchecked" })
+	private TableView getPlaneOfFiles() {
 
-		ColumnConstraints column1 = new ColumnConstraints();
-		column1.setPercentWidth(100);
-		mainGrid.getColumnConstraints().add(column1);
-		
-		
-		
-		
-		
-		AnchorPane anchor = new AnchorPane();
-		Pagination pagination = new Pagination(this.ItemsPages, this.ItemsSellectedPage);
-		pagination.setPageFactory(new Callback<Integer, Node>() {
-			 
-            public Node call(Integer pageIndex) {
-                if (pageIndex >= ItemsPages) {
-                    return null;
-                } else {
-                	ItemsSellectedPage = pageIndex;
-                	System.out.println();
-                    return getPlaneOfFiles();
-                }
-            }
-        });
-        anchor.getChildren().addAll(pagination);
-        mainGrid.add(anchor, 0, 1);
-        return anchor;
-		//return mainGrid;
-	}
-	
-	private FlowPane getPlaneOfFiles(){
+		TableView<FileItemContainer> table = new TableView<FileItemContainer>();
+		TableColumn iconCol = new TableColumn();
+		TableColumn titleCol = new TableColumn("Имя файла");
+		TableColumn editCol = new TableColumn();
 
-		
+		table.setRowFactory(tv -> {
+			TableRow<FileItemContainer> row = new TableRow<>();
+			row.setOnMouseClicked(event -> {
+				if (event.getClickCount() == 2 && (!row.isEmpty())) {
+					openFile(new File(FilesModel.getPathToFile(row.getItem().getAuthorId())));
+				}
+			});
+			return row;
+		});
+
 		int FilesCount;
 		try {
 
 			Integer start = (this.ItemsSellectedPage) * this.ItemsPerPage;
-			if (!CUserRules.get("Actions.FullAccessToFiles")) {
-				FilesCount = FilesModel.getFilesCount(CUser.getId());
-				this.files = FilesModel.getFilesByAuthor(CUser.getId(), start, this.ItemsPerPage);
+			
+			
+			
+			if (!CUserRules.get("Actions.FullAccessToFiles")) {		
+				FilesCount = FilesModel.getFilesByConditions("COUNT(*) as count",selectedTreeItemId,CUser.getId(),(Core.ConditionType)null,-1,-1).getInt("count");
+				this.files = FilesModel.getFilesMapByConditions("f.*",selectedTreeItemId,-1,(Core.ConditionType)null,start, this.ItemsPerPage);
 			} else {
-				FilesCount = FilesModel.getAllFilesCount();
-				this.files = FilesModel.getAllFiles(start, this.ItemsPerPage);
+				FilesCount = FilesModel.getFilesByConditions("COUNT(*) as count",selectedTreeItemId,-1,(Core.ConditionType)null,-1,-1).getInt("count");
+				this.files = FilesModel.getFilesMapByConditions("f.*",selectedTreeItemId,-1,(Core.ConditionType)null,start, this.ItemsPerPage);
 			}
 			this.ItemsPages = (FilesCount - 1) / this.ItemsPerPage + 1;
+			pagination.setPageCount(ItemsPages);
 		} catch (NullPointerException e) {
 			e.printStackTrace();
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
-
-		FlowPane PhotosPlane = new FlowPane();
-		
-		PhotosPlane.setBorder(new Border(new BorderStroke(Color.BLACK, 
-	           BorderStrokeStyle.SOLID, CornerRadii.EMPTY, BorderWidths.DEFAULT)));
-		PhotosPlane.setHgap(10);
-		PhotosPlane.setVgap(10);
-		
-		
+		data.clear();
 		for (Map.Entry file : this.files.entrySet()) {
-			FileItemContainer item = (FileItemContainer) file.getValue();	
-			item.getFileId();
-			Image image = new Image("file:" + FilesModel.getPathToFile(item.getFileId()));
+			FileItemContainer item = (FileItemContainer) file.getValue();
+
+			Image image = null;
+
+			if (item.getIcon().equals("IMAGE")) {
+				image = new Image("file:" + FilesModel.getPathToFile(item.getFileId()));
+			} else {
+				image = new Image("file:" + FilesModel.getSystemPathToFile(item.getIcon()));
+			}
 			ImageView iv2 = new ImageView();
 			iv2.setImage(image);
-			iv2.setFitWidth(200);
+			iv2.setFitWidth(100);
 			iv2.setFitHeight(100);
-			iv2.setPreserveRatio(false);
+			iv2.setPreserveRatio(true);
 			iv2.setSmooth(true);
 			iv2.setCache(true);
-			iv2.setId("image_mains_" + item.getFileId());
-			iv2.setOnMouseClicked(event -> {
-				if (event.getClickCount() == 2 && event.getButton() == MouseButton.PRIMARY) {
-					openFile(new File(FilesModel.getPathToFile(iv2.getId().replaceAll("image_mains_", ""))));
-				}
-			});
-			PhotosPlane.getChildren().add(iv2);	
+			item.setRawIcon(iv2);
+			data.add(item);
+
+			iconCol.setCellValueFactory(new PropertyValueFactory<FileItemContainer, ImageView>("rawIcon"));
+			iconCol.setMinWidth(100);
+			iconCol.setResizable(false);
+			iconCol.setSortable(false);
+			iconCol.setPrefWidth(100);
+
+			titleCol.setCellValueFactory(new PropertyValueFactory<FileItemContainer, String>("title"));
+
+			titleCol.setMinWidth(20);
+
+			editCol.setCellValueFactory(new PropertyValueFactory<FileItemContainer, String>("authorId"));
+
+			editCol.setMinWidth(160);
+
 		}
-		return PhotosPlane;
+
+		table.getColumns().addAll(iconCol, titleCol, editCol);
+		table.setItems(FXCollections.observableArrayList(data));
+
+		return table;
 	}
-	private boolean isHavePremissionToAddFile(int userId){
-		if(FilesModel.getUserUpoadSize2day(userId) > 10240000/2)
+
+	private boolean isHavePremissionToAddFile(int userId) {
+		if (FilesModel.getUserUpoadSize2day(userId) > 10240000 / 2)
 			return false;
 		return true;
 	}
 
-	public class MyTreeNote {
-		private String title;
-		private Integer id;
+	 public class MyTreeNote {
 
-		public MyTreeNote(int id, String title) {
-			this.title = title;
-			this.id = id;
-		}
-
-		public String toString() {
-			return this.title;
-		}
-
-		public Integer getId() {
-			return id;
-		}
-
-		public String getTitle() {
-			return this.title;
-		}
-	}
+	        private SimpleStringProperty name;
+	        private SimpleIntegerProperty id;
+	        private MyTreeNote(int id, String title) {
+	            this.id = new SimpleIntegerProperty(id);
+	            this.name = new SimpleStringProperty(title);
+	        }
+	        public Integer getId() {
+	            return id.get();
+	        }
+	        public String getTitle() {
+	            return name.get();
+	        }
+	    }
+	 
+	 
+	
 
 }

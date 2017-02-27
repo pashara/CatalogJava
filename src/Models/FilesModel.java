@@ -13,6 +13,7 @@ import java.util.Map;
 import Containers.FileItemContainer;
 import Core.CUser;
 import Core.CUserRules;
+import Core.ConditionType;
 import db.DB;
 
 public class FilesModel {
@@ -39,23 +40,28 @@ public class FilesModel {
 	/**
 	 * Returns filepath by FileID
 	 *
-	 * @param  FileId  - FileID
+	 * @param FileId
+	 *            - FileID
 	 * @return Full filepath
 	 */
 	public static String getPathToFile(String FileId) {
 		return getPathToFile(Integer.valueOf(FileId));
 	}
-	
-	
-	
+
 	/**
 	 * Returns filepath by FileID
 	 *
-	 * @param  FileId  - FileID
+	 * @param FileId
+	 *            - FileID
 	 * @return Full filepath
 	 */
+	public static String getSystemPathToFile(String filename) {
+		return System.getProperty("user.dir") + File.separator + "data" + File.separator + "system" + File.separator
+				+ File.separator + filename.replace("//", File.separator);
+	}
+
 	public static String getPathToFile(Integer FileId) {
-		ResultSet ImageInfo = DB.exSelect("select * from files where id ="+FileId);
+		ResultSet ImageInfo = DB.exSelect("select * from files where id =" + FileId);
 		String title = null;
 		Integer authorId = null;
 		try {
@@ -65,19 +71,18 @@ public class FilesModel {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		
-		if(CUser.getId() == authorId || CUserRules.get("Actions.FullAccessToFiles")){
-			if(title.equals(null)){
+
+		//if (CUser.getId() == authorId || CUserRules.get("Actions.FullAccessToFiles")) {
+			if (title.equals(null)) {
 				throw new NullPointerException();
 			}
-		}else{
-			throw new NullPointerException();
-		}
-		
-		return System.getProperty("user.dir") + File.separator + dataDir.replace("//", File.separator) + authorId.toString()
-				+ File.separator + title;
+		//} else {
+		//	throw new NullPointerException();
+		//}
+
+		return System.getProperty("user.dir") + File.separator + dataDir.replace("//", File.separator)
+				+ authorId.toString() + File.separator + title;
 	}
-	
 
 	/*
 	 * @override Try to find file EXTENTION in base from child to parent 0 -
@@ -122,45 +127,136 @@ public class FilesModel {
 
 		return 0;
 	}
-	
-	
-	public static Map<Integer, FileItemContainer> getFilesByAuthor(int id){
+
+	public static Map<Integer, FileItemContainer> getFilesByAuthor(int id) {
 		try {
-			return getFilesByAuthor(id,-1,-1);
-		}catch(NullPointerException e){
+			return getFilesByAuthor(id, -1, -1);
+		} catch (NullPointerException e) {
 			throw new NullPointerException();
 		}
 	}
+
+
+	/*
+	 * String : f.COUNT(*) as count : f.*
+	 * 
+	 * */
 	
-	public static int getAllFilesCount(){
+	private boolean _prevCondition = false;
+	private String AddCondition2String(String newCondition,boolean bCondition, String Ampersant){
+		if(bCondition){
+			String WhereCondition="";
+			if(_prevCondition)
+				WhereCondition+=Ampersant;
+			WhereCondition+= newCondition;
+			_prevCondition = true;
+
+			return WhereCondition;
+		}else
+			_prevCondition = false;
+		return "";
+	}
+	
+
+	@SuppressWarnings("rawtypes")
+	public static Map<Integer, FileItemContainer> getFilesMapByConditions(String fields,int categoryId, int authorId, ConditionType condition, int offset, int limit) {
+		Map<Integer, FileItemContainer> Result = new HashMap<Integer, FileItemContainer>();
+		ResultSet rs = null;
+		rs = _getFilesByConditions(fields, categoryId, authorId, condition, offset, limit);
 		try {
+			for (; rs.next();) {
+				FileItemContainer file = new FileItemContainer(rs);
+				Result.put(rs.getInt("id"), file);
+			}
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+		
+		return Result;
+	}
+	@SuppressWarnings("rawtypes")
+	public static ResultSet getFilesByConditions(String fields,int categoryId, int authorId, ConditionType condition, int offset, int limit) {
+		ResultSet rs = null;
+		rs = _getFilesByConditions(fields, categoryId, authorId, condition, offset, limit);
+		return rs;
+	}
+	
+	
+	@SuppressWarnings("rawtypes")
+	protected static ResultSet _getFilesByConditions(String fields,int categoryId, int authorId, ConditionType condition, int offset, int limit) {
+		try {
+			String WhereCondition = "";
+			FilesModel FilesModelObj = new FilesModel();
+			
+			WhereCondition+= FilesModelObj.AddCondition2String("author=?",(authorId >= 0)," AND ");
+			WhereCondition+= FilesModelObj.AddCondition2String("category=?",(categoryId > 0)," AND ");
+			if(condition != null)
+			WhereCondition+= FilesModelObj.AddCondition2String(condition.getConditionString(),(condition != null),condition.getAmpersant());
+			String LimitCondition = (offset > -1 && limit > 0) ? "LIMIT " + offset + "," + limit : "";
+			
 			PreparedStatement stmt;
 			ResultSet rs = null;
-			stmt = DB.conn
-				.prepareStatement("SELECT COUNT(*) as count FROM files");
+			String SQLEx = "SELECT "+fields+", i.icon as icon FROM files f LEFT OUTER JOIN files_icons i ON f.typeId = i.id " + ((WhereCondition.length() > 0)?" WHERE "+WhereCondition :"") +" "+ LimitCondition;
+			//System.out.println(SQLEx);
+			stmt = DB.conn.prepareStatement(SQLEx);
+			
+			int installedValues = 1;
+			if (authorId >= 0){
+				stmt.setInt(installedValues, authorId);
+				installedValues++;
+				//System.out.println(authorId);
+			}
+			if (categoryId > 0){
+				stmt.setInt(installedValues, categoryId);
+				installedValues++;
+				//System.out.println(categoryId);
+			}
+			if (condition != null){
+				switch(condition.getTypeVal()){
+				case 1:
+					stmt.setInt(installedValues, (int) condition.getConditionValue());
+					break;
+				case 2:
+					stmt.setString(installedValues, (String) condition.getConditionValue());
+					break;
+				}
+
+				//System.out.println(condition.getConditionValue());
+				installedValues++;
+			}
 			rs = stmt.executeQuery();
-			return rs.getInt("count");
+			return rs;
 		} catch (SQLException e) {
 			e.printStackTrace();
 			throw new NullPointerException();
 		}
 	}
-	public static int getFilesCount(int id){
+	
+	@SuppressWarnings("rawtypes")
+	public static int getCountFilesByAuthorId(int authorId) {
 		try {
-			PreparedStatement stmt;
-			ResultSet rs = null;
-			stmt = DB.conn
-				.prepareStatement("SELECT COUNT(*) as count FROM files WHERE author=?");
-			stmt.setInt(1, id);
-			rs = stmt.executeQuery();
-			return rs.getInt("count");
+			return getFilesByConditions("COUNT(*) as count",-1, authorId, (ConditionType)null, -1, -1).getInt("count");
 		} catch (SQLException e) {
 			e.printStackTrace();
-			throw new NullPointerException();
 		}
+		return 0;
+	}
+
+	@SuppressWarnings("rawtypes")
+	public static int getCountFilesByAuthorIdAndCategory(int authorId,int categoryId) {
+		try {
+			return getFilesByConditions("COUNT(*) as count",categoryId, authorId, (ConditionType)null, -1, -1).getInt("count");
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+		return 0;
 	}
 	
-	public static String getExt(String filename){
+
+	
+	
+
+	public static String getExt(String filename) {
 		String extension = "";
 		int index = filename.lastIndexOf('.');
 		int position = Math.max(filename.lastIndexOf('/'), filename.lastIndexOf('\\'));
@@ -169,22 +265,25 @@ public class FilesModel {
 		}
 		return extension;
 	}
-	
-	public static Map<Integer, FileItemContainer> getFilesByAuthor(int id, int offset, int limit){
+
+	public static Map<Integer, FileItemContainer> getFilesByAuthor(int id, int offset, int limit) {
+
 		PreparedStatement stmt;
 		ResultSet rs = null;
 		Map<Integer, FileItemContainer> Result = new HashMap<Integer, FileItemContainer>();
 		try {
-			String LimitCondition = (offset > -1 && limit > 0 )?"LIMIT "+offset+","+limit:"";
-			stmt = DB.conn
-				.prepareStatement("SELECT * FROM files WHERE author=? "+LimitCondition);
-			stmt.setInt(1, id);
+			String LimitCondition = (offset > -1 && limit > 0) ? "LIMIT " + offset + "," + limit : "";
+			String WhereCondition = (id >= 0) ? "WHERE f.author=?" : "";
+			stmt = DB.conn.prepareStatement(
+					"SELECT f.*, i.icon as icon FROM files f LEFT OUTER JOIN files_icons i ON f.typeId = i.id "
+							+ WhereCondition + " " + LimitCondition);
+			if (id > 0)
+				stmt.setInt(1, id);
 			rs = stmt.executeQuery();
 
-			for(;rs.next();){
-				FileItemContainer file = new FileItemContainer(rs.getInt("id"), rs.getInt("author"), rs.getString("author"),
-						rs.getString("originalExt"), rs.getString("date"));
-				Result.put(rs.getInt("id"),file);
+			for (; rs.next();) {
+				FileItemContainer file = new FileItemContainer(rs);
+				Result.put(rs.getInt("id"), file);
 			}
 		} catch (SQLException e) {
 			e.printStackTrace();
@@ -192,52 +291,27 @@ public class FilesModel {
 		}
 		return Result;
 	}
-	
-	public static Map<Integer, FileItemContainer> getAllFiles(int offset, int limit){
-		PreparedStatement stmt;
-		ResultSet rs = null;
-		Map<Integer, FileItemContainer> Result = new HashMap<Integer, FileItemContainer>();
-		try {
-			String LimitCondition = (offset > -1 && limit > 0 )?"LIMIT "+offset+","+limit:"";
-			stmt = DB.conn
-				.prepareStatement("SELECT * FROM files "+LimitCondition);
-			rs = stmt.executeQuery();
 
-			for(;rs.next();){
-				FileItemContainer file = new FileItemContainer(rs.getInt("id"), rs.getInt("author"), rs.getString("author"),
-						rs.getString("originalExt"), rs.getString("date"));
-				Result.put(rs.getInt("id"),file);
-			}
-		} catch (SQLException e) {
-			e.printStackTrace();
-			throw new NullPointerException();
-		}
-		return Result;
+	public static Map<Integer, FileItemContainer> getAllFiles(int offset, int limit) {
+		return getFilesByAuthor(-1, offset, limit);
 	}
-	
-	
-	
-	public static int getUserUpoadSize2day(int userId){
+
+	public static int getUserUpoadSize2day(int userId) {
 		PreparedStatement stmt;
 		ResultSet rs = null;
-		SimpleDateFormat ft = new SimpleDateFormat ("dd-MM-yyyy");;
-				
-				
+		SimpleDateFormat ft = new SimpleDateFormat("dd-MM-yyyy");
+		;
 		try {
-			stmt = DB.conn
-				.prepareStatement("SELECT SUM(size) as sum FROM files WHERE (date >= ? AND date <= ?) AND author = ?");
-			stmt.setString(1, ft.format(new Date())+" 00:00:00");
-			stmt.setString(2, ft.format(new Date())+" 23:59:59");
+			stmt = DB.conn.prepareStatement(
+					"SELECT SUM(size) as sum FROM files WHERE (date >= ? AND date <= ?) AND author = ?");
+			stmt.setString(1, ft.format(new Date()) + " 00:00:00");
+			stmt.setString(2, ft.format(new Date()) + " 23:59:59");
 			stmt.setInt(3, userId);
 			rs = stmt.executeQuery();
 			return rs.getInt("sum");
 		} catch (SQLException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		
-		//date > "27-02-2017 00:00:00" AND date < "27-02-2017 10:00:00"
 		return 0;
 	}
 }
-
