@@ -1,11 +1,16 @@
 package Models;
 
 import java.io.File;
-import java.nio.file.AccessDeniedException;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.text.SimpleDateFormat;
 import java.util.Arrays;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 
+import Containers.FileItemContainer;
 import Core.CUser;
 import Core.CUserRules;
 import db.DB;
@@ -112,10 +117,127 @@ public class FilesModel {
 															// разрешен он или
 															// нет, то мы идём
 															// глубже
-			// return 5;
 			return isGoodExt(resSet.getInt("parent"), type);
 		}
 
 		return 0;
 	}
+	
+	
+	public static Map<Integer, FileItemContainer> getFilesByAuthor(int id){
+		try {
+			return getFilesByAuthor(id,-1,-1);
+		}catch(NullPointerException e){
+			throw new NullPointerException();
+		}
+	}
+	
+	public static int getAllFilesCount(){
+		try {
+			PreparedStatement stmt;
+			ResultSet rs = null;
+			stmt = DB.conn
+				.prepareStatement("SELECT COUNT(*) as count FROM files");
+			rs = stmt.executeQuery();
+			return rs.getInt("count");
+		} catch (SQLException e) {
+			e.printStackTrace();
+			throw new NullPointerException();
+		}
+	}
+	public static int getFilesCount(int id){
+		try {
+			PreparedStatement stmt;
+			ResultSet rs = null;
+			stmt = DB.conn
+				.prepareStatement("SELECT COUNT(*) as count FROM files WHERE author=?");
+			stmt.setInt(1, id);
+			rs = stmt.executeQuery();
+			return rs.getInt("count");
+		} catch (SQLException e) {
+			e.printStackTrace();
+			throw new NullPointerException();
+		}
+	}
+	
+	public static String getExt(String filename){
+		String extension = "";
+		int index = filename.lastIndexOf('.');
+		int position = Math.max(filename.lastIndexOf('/'), filename.lastIndexOf('\\'));
+		if (index > position) {
+			extension = filename.substring(index + 1);
+		}
+		return extension;
+	}
+	
+	public static Map<Integer, FileItemContainer> getFilesByAuthor(int id, int offset, int limit){
+		PreparedStatement stmt;
+		ResultSet rs = null;
+		Map<Integer, FileItemContainer> Result = new HashMap<Integer, FileItemContainer>();
+		try {
+			String LimitCondition = (offset > -1 && limit > 0 )?"LIMIT "+offset+","+limit:"";
+			stmt = DB.conn
+				.prepareStatement("SELECT * FROM files WHERE author=? "+LimitCondition);
+			stmt.setInt(1, id);
+			rs = stmt.executeQuery();
+
+			for(;rs.next();){
+				FileItemContainer file = new FileItemContainer(rs.getInt("id"), rs.getInt("author"), rs.getString("author"),
+						rs.getString("originalExt"), rs.getString("date"));
+				Result.put(rs.getInt("id"),file);
+			}
+		} catch (SQLException e) {
+			e.printStackTrace();
+			throw new NullPointerException();
+		}
+		return Result;
+	}
+	
+	public static Map<Integer, FileItemContainer> getAllFiles(int offset, int limit){
+		PreparedStatement stmt;
+		ResultSet rs = null;
+		Map<Integer, FileItemContainer> Result = new HashMap<Integer, FileItemContainer>();
+		try {
+			String LimitCondition = (offset > -1 && limit > 0 )?"LIMIT "+offset+","+limit:"";
+			stmt = DB.conn
+				.prepareStatement("SELECT * FROM files "+LimitCondition);
+			rs = stmt.executeQuery();
+
+			for(;rs.next();){
+				FileItemContainer file = new FileItemContainer(rs.getInt("id"), rs.getInt("author"), rs.getString("author"),
+						rs.getString("originalExt"), rs.getString("date"));
+				Result.put(rs.getInt("id"),file);
+			}
+		} catch (SQLException e) {
+			e.printStackTrace();
+			throw new NullPointerException();
+		}
+		return Result;
+	}
+	
+	
+	
+	public static int getUserUpoadSize2day(int userId){
+		PreparedStatement stmt;
+		ResultSet rs = null;
+		SimpleDateFormat ft = new SimpleDateFormat ("dd-MM-yyyy");;
+				
+				
+		try {
+			stmt = DB.conn
+				.prepareStatement("SELECT SUM(size) as sum FROM files WHERE (date >= ? AND date <= ?) AND author = ?");
+			stmt.setString(1, ft.format(new Date())+" 00:00:00");
+			stmt.setString(2, ft.format(new Date())+" 23:59:59");
+			stmt.setInt(3, userId);
+			rs = stmt.executeQuery();
+			return rs.getInt("sum");
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		//date > "27-02-2017 00:00:00" AND date < "27-02-2017 10:00:00"
+		return 0;
+	}
 }
+

@@ -4,9 +4,11 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
+import Core.CApplication;
 import Core.CController;
 import Core.CUser;
 import Core.MD5;
+import Models.FilesModel;
 import db.DB;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
@@ -105,11 +107,20 @@ public class LoginController extends CController {
 		fPassword.textProperty().addListener((observable, oldValue, newValue) -> {
 			ErrorText.setText("");
 		});
-
 		root.setCenter(gridpane);
 		primaryStage.setScene(scene);
 		primaryStage.show();
 
+		
+		CApplication.daysBeetwen();
+		
+		 
+		CUser.loginByUsername("admin");
+		CController gridController = new MainGridController();
+		gridController.setPrevScene(primaryStage);
+		gridController.run();
+		
+		
 		/*
 		 * System.out.println("11"+CUserRules.get(0, "MainGrid"));
 		 * System.out.println("11"+CUserRules.get(1, "MainGrid"));

@@ -7,13 +7,16 @@ import java.nio.file.Files;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import Containers.FileItemContainer;
 import Core.CApplication;
 import Core.CController;
 import Core.CUser;
@@ -21,6 +24,7 @@ import Core.CUserRules;
 import Core.CValidations;
 import Models.FilesModel;
 import db.DB;
+import javafx.beans.property.ReadOnlyDoubleProperty;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
@@ -60,10 +64,12 @@ public class MainGridController extends CController {
 
 	private ArrayList<Integer> IdsByIndex = new ArrayList<Integer>();
 	private Desktop desktop = Desktop.getDesktop();
+	private Map<Integer, FileItemContainer> files;
 	private int selectedTreeItemId;
 	BorderPane border;
+	GridPane mainGrid;
 	
-	private int ItemsSellectedPage = 1;
+	private int ItemsSellectedPage = 0;
 	private int ItemsPerPage = 3;
 	private int ItemsPages = 0;
 	
@@ -78,6 +84,7 @@ public class MainGridController extends CController {
 		//border.setRight(getTreeCategory());
 
 		border.setCenter(addGridPane());
+		//border.setRight(addGridPane());
 		// border.setRight(addFlowPane());
 
 		if (scene == null)
@@ -184,9 +191,11 @@ public class MainGridController extends CController {
 			Button bCreate = new Button("Добавить");
 			bCreate.setPrefSize(100, 20);
 			hbox.getChildren().add(bCreate);
-
 			bCreate.setOnAction(new EventHandler<ActionEvent>() {
 				public void handle(ActionEvent e) {
+					if(!isHavePremissionToAddFile(CUser.getId())){
+						return;
+					}
 					if (selectedTreeItemId > 0) {
 
 						FileChooser fileChooser = new FileChooser();
@@ -196,7 +205,7 @@ public class MainGridController extends CController {
 						} else {
 							fileChooser.setInitialDirectory(new File(CApplication.LastFilePath));
 						}
-						fileChooser.setSelectedExtensionFilter(new FileChooser.ExtensionFilter("AllFormatss", "xls"));
+						//fileChooser.setSelectedExtensionFilter(new FileChooser.ExtensionFilter("AllFormatss", "xls"));
 						
 						/*
 						 * 0 - файл не открыт 1 - файл не того формата 2 -
@@ -207,19 +216,7 @@ public class MainGridController extends CController {
 							File file = fileChooser.showOpenDialog(primaryStage);
 							if (file != null) {
 								CApplication.LastFilePath = file.getParent();
-
-								System.out.println(file);
-								System.out.println("File size:" + file.length() + " B");
-								System.out.println("File path:" + file);
-								System.out.println("File name:" + file.getName());
-								String extension = "";
-								int i = file.getName().lastIndexOf('.');
-								int p = Math.max(file.getName().lastIndexOf('/'), file.getName().lastIndexOf('\\'));
-								if (i > p) {
-									extension = file.getName().substring(i + 1);
-								}
-								System.out.println("File ext:" + extension + ":");
-
+								String extension = FilesModel.getExt(file.getName());
 								if (!CValidations.isGoodExt(selectedTreeItemId, extension)) {
 									isOpenedFile = 0;
 									continue;
@@ -234,8 +231,11 @@ public class MainGridController extends CController {
 								try {
 									copyFileUsingJava7Files(file, dest);
 
+									SimpleDateFormat ft = new SimpleDateFormat ("dd-MM-yyyy hh:mm:ss");
+									
+									
 									PreparedStatement stmt = DB.conn.prepareStatement(
-											"INSERT INTO files (author, category,title,originalTitle,originalExt,size) VALUES (?,?,?,?,?,?);");
+											"INSERT INTO files (author, category,title,originalTitle,originalExt,size,date) VALUES (?,?,?,?,?,?,?);");
 
 									stmt.setInt(1, CUser.getId());
 									stmt.setInt(2, selectedTreeItemId);
@@ -243,8 +243,8 @@ public class MainGridController extends CController {
 									stmt.setString(4, file.getName());
 									stmt.setString(5, extension);
 									stmt.setInt(6, (int)file.length());
+									stmt.setString(7,ft.format(new Date()));
 									stmt.execute();
-									// FilesModel.getPathToFile(CUser.getId(),newFileTitle);
 
 									border.setCenter(addGridPane());
 								} catch (IOException e1) {
@@ -285,24 +285,24 @@ public class MainGridController extends CController {
 		Files.copy(source.toPath(), dest.toPath());
 	}
 
-	public GridPane addGridPane() {
-		GridPane grid = new GridPane();
-		grid.setHgap(10);
-		grid.setVgap(10);
-		grid.setGridLinesVisible(true);
-		grid.setPadding(new Insets(0, 10, 0, 10));
+	public AnchorPane addGridPane() {
+		mainGrid = new GridPane();
+		mainGrid.setHgap(10);
+		mainGrid.setVgap(10);
+		mainGrid.setGridLinesVisible(true);
+		mainGrid.setPadding(new Insets(0, 0, 0, 0));
 		getPlaneOfFiles();
 
 		ColumnConstraints column1 = new ColumnConstraints();
 		column1.setPercentWidth(100);
-		grid.getColumnConstraints().add(column1);
+		mainGrid.getColumnConstraints().add(column1);
 		
 		
 		
 		
 		
 		AnchorPane anchor = new AnchorPane();
-		Pagination pagination = new Pagination(this.ItemsPages);
+		Pagination pagination = new Pagination(this.ItemsPages, this.ItemsSellectedPage);
 		pagination.setPageFactory(new Callback<Integer, Node>() {
 			 
             public Node call(Integer pageIndex) {
@@ -316,48 +316,42 @@ public class MainGridController extends CController {
             }
         });
         anchor.getChildren().addAll(pagination);
-		grid.add(anchor, 0, 1);
-
-		return grid;
+        mainGrid.add(anchor, 0, 1);
+        return anchor;
+		//return mainGrid;
 	}
 	
 	private FlowPane getPlaneOfFiles(){
 
-		List<String[]> imagesFromDB = new ArrayList<>();
-		int imagesForOutputNumber = 0;
+		
+		int FilesCount;
 		try {
-			
-			ResultSet resSet;
-			
-			
-			String WHEREsollution;
-			if(!CUserRules.get("Actions.FullAccessToFiles"))
-				WHEREsollution = "WHERE author = "+CUser.getId();
-			else
-				WHEREsollution = "";
-			
-			int FilesCount = DB.exSelect("select COUNT(*) as count from files "+WHEREsollution).getInt("count");
-			this.ItemsPages = (FilesCount-1)/this.ItemsPerPage + 1;
-			Integer start = (this.ItemsSellectedPage)*this.ItemsPerPage;
-			resSet = DB.exSelect("select * from files "+WHEREsollution +" LIMIT "+ start +", "+ItemsPerPage);
-			
-			for (imagesForOutputNumber = 0; resSet.next(); imagesForOutputNumber++) {
-				String data[] = { resSet.getString("id"), resSet.getString("author"), resSet.getString("title") };
-				imagesFromDB.add(data);
+
+			Integer start = (this.ItemsSellectedPage) * this.ItemsPerPage;
+			if (!CUserRules.get("Actions.FullAccessToFiles")) {
+				FilesCount = FilesModel.getFilesCount(CUser.getId());
+				this.files = FilesModel.getFilesByAuthor(CUser.getId(), start, this.ItemsPerPage);
+			} else {
+				FilesCount = FilesModel.getAllFilesCount();
+				this.files = FilesModel.getAllFiles(start, this.ItemsPerPage);
 			}
-		} catch (SQLException e) {
+			this.ItemsPages = (FilesCount - 1) / this.ItemsPerPage + 1;
+		} catch (NullPointerException e) {
 			e.printStackTrace();
 		}
-		
-		
+
 		FlowPane PhotosPlane = new FlowPane();
 		
 		PhotosPlane.setBorder(new Border(new BorderStroke(Color.BLACK, 
 	           BorderStrokeStyle.SOLID, CornerRadii.EMPTY, BorderWidths.DEFAULT)));
 		PhotosPlane.setHgap(10);
 		PhotosPlane.setVgap(10);
-		for (int j = 0; imagesForOutputNumber > j; j++) {
-			Image image = new Image("file:" + FilesModel.getPathToFile(imagesFromDB.get(j)[0]));
+		
+		
+		for (Map.Entry file : this.files.entrySet()) {
+			FileItemContainer item = (FileItemContainer) file.getValue();	
+			item.getFileId();
+			Image image = new Image("file:" + FilesModel.getPathToFile(item.getFileId()));
 			ImageView iv2 = new ImageView();
 			iv2.setImage(image);
 			iv2.setFitWidth(200);
@@ -365,15 +359,20 @@ public class MainGridController extends CController {
 			iv2.setPreserveRatio(false);
 			iv2.setSmooth(true);
 			iv2.setCache(true);
-			iv2.setId("image_mains_" + imagesFromDB.get(j)[0]);
+			iv2.setId("image_mains_" + item.getFileId());
 			iv2.setOnMouseClicked(event -> {
 				if (event.getClickCount() == 2 && event.getButton() == MouseButton.PRIMARY) {
 					openFile(new File(FilesModel.getPathToFile(iv2.getId().replaceAll("image_mains_", ""))));
 				}
 			});
-			PhotosPlane.getChildren().add(iv2);
+			PhotosPlane.getChildren().add(iv2);	
 		}
 		return PhotosPlane;
+	}
+	private boolean isHavePremissionToAddFile(int userId){
+		if(FilesModel.getUserUpoadSize2day(userId) > 10240000/2)
+			return false;
+		return true;
 	}
 
 	public class MyTreeNote {
