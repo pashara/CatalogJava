@@ -30,6 +30,7 @@ public class FileItemContainer {
 			this.originalTitle = rs.getString("originalTitle");
 			this.date = rs.getString("date");
 			this.icon = rs.getString("icon");
+			
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}

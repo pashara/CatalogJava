@@ -30,6 +30,7 @@ public class CUserRules {
 	}
 
 	public static Boolean get(String action) {
+		//return true;
 		return get(CUser.getUserStatus(), action);
 	}
 
