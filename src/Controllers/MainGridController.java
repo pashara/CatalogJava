@@ -5,15 +5,18 @@ import java.io.File;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.util.Map;
+import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import Containers.FileItemContainer;
+import Containers.MyTreeNoteContainer;
 import Core.CApplication;
 import Core.CController;
 import Core.CUser;
 import Core.CUserRules;
 import Core.CValidations;
+import Core.ConditionType;
 import Models.FilesModel;
 import Models.MainGridModel;
 import javafx.collections.FXCollections;
@@ -24,28 +27,39 @@ import javafx.geometry.Insets;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.ContextMenu;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.Pagination;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
+import javafx.scene.control.TreeTableRow;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.input.DragEvent;
+import javafx.scene.input.Dragboard;
+import javafx.scene.input.TransferMode;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.stage.FileChooser;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Alert.AlertType;
+
 
 public class MainGridController extends CController {
 
 	private Map<Integer, FileItemContainer> files;
-	private int selectedCategoryId = 1;
+	private int selectedCategoryId = 6;
 	private int itemsSellectedPage = 0;
-	private int itemsPerPage = 10;
+	private int itemsPerPage = 5;
 	private int itemsPages = 0;
+	private String searchedText = "";
 	private BorderPane border;
 	private Pagination pagination = new Pagination();
 	private AnchorPane mainAncorPane = new AnchorPane();
@@ -54,7 +68,7 @@ public class MainGridController extends CController {
 	private Node createDataTable(int pageIndex) {
 		itemsSellectedPage = pageIndex;
 		pagination.setCurrentPageIndex(pageIndex);
-		return new BorderPane(getPlaneOfFiles());
+		return new BorderPane(getCenterTable());
 	}
 
 	
@@ -69,23 +83,41 @@ public class MainGridController extends CController {
 		grid.setHgap(5);
 		grid.setVgap(5);
 		ColumnConstraints column = new ColumnConstraints();
-		column.setPercentWidth(100);
+		column.setPercentWidth(80);
 		grid.getColumnConstraints().add(column);
+		ColumnConstraints column1 = new ColumnConstraints();
+		column1.setPercentWidth(20);
+		grid.getColumnConstraints().add(column1);
 		HBox hbox = addHBox();
 		border.setTop(hbox);
 
 		border.setLeft(MainGridModel.getTreeCategory(this));
 		updateData(); // Load data
-		AnchorPane.setTopAnchor(pagination, 10.0);
-		AnchorPane.setRightAnchor(pagination, 10.0);
-		AnchorPane.setBottomAnchor(pagination, 10.0);
-		AnchorPane.setLeftAnchor(pagination, 10.0);
+		AnchorPane.setTopAnchor(pagination, 0.0);
+		AnchorPane.setRightAnchor(pagination, 0.0);
+		AnchorPane.setBottomAnchor(pagination, 0.0);
+		AnchorPane.setLeftAnchor(pagination, 0.0);
 		mainAncorPane.getChildren().addAll(pagination);
 		
 
 		TextField fSearch = new TextField();
+		fSearch.setPromptText("Введите строку для поиска");
 		grid.add(fSearch, 0,0);
-		grid.add(mainAncorPane, 0,1);
+		Button bSearch = new Button("Искать");
+		bSearch.setPrefWidth(900);
+		grid.add(bSearch, 1,0);
+		
+		
+		bSearch.setOnAction(new EventHandler<ActionEvent>() {
+			public void handle(ActionEvent e) {
+				searchedText = new String(fSearch.getText());
+				updateData();
+			}
+		});
+		
+		
+		fSearch.setPadding(new Insets(5));
+		grid.add(mainAncorPane, 0,1,2,1);
 		border.setCenter(grid);
 		if (scene == null)
 			scene = new Scene(border, 800, 600);
@@ -93,6 +125,9 @@ public class MainGridController extends CController {
 		primaryStage.setTitle("MainGrid:" + CUser.getFIO());
 		primaryStage.setScene(scene);
 		primaryStage.setResizable(true);
+
+		primaryStage.setMinWidth(500);
+		primaryStage.setMinHeight(400);
 		primaryStage.show();
 		primaryStage.setX(50);
 		primaryStage.setY(50);
@@ -178,9 +213,8 @@ public class MainGridController extends CController {
 					File dest = new File(
 							FilesModel.createFolderIsNotExist("//data//" + CUser.getId() + "//") + newFileTitle);
 
-					MainGridModel.insertAndCoppyFile(file, dest, selectedCategoryId, newFileTitle);
+					MainGridModel.insertAndCoppyFile(file, dest, selectedCategoryId, newFileTitle,extension);
 					updateData();
-
 				} else {
 					isOpenedFile = 1;
 				}
@@ -190,38 +224,93 @@ public class MainGridController extends CController {
 	}
 
 	@SuppressWarnings({ "rawtypes", "unchecked" })
-	private TableView getPlaneOfFiles() {
-
+	private TableView getCenterTable() {
 		TableView<FileItemContainer> table = new TableView<FileItemContainer>();
 		TableColumn iconCol = new TableColumn();
 		TableColumn titleCol = new TableColumn("Имя файла");
 		TableColumn editCol = new TableColumn();
 
 		table.setRowFactory(tv -> {
-			TableRow<FileItemContainer> row = new TableRow<>();
+
+			
+			
+			final ContextMenu contextMenu = new ContextMenu();
+			MenuItem item1 = new MenuItem("Редактировать файл");
+			MenuItem item2 = new MenuItem("Удалить файл");
+
+			contextMenu.getItems().addAll(item1, item2);
+
+			item2.setOnAction(new EventHandler<ActionEvent>() {
+			    public void handle(ActionEvent e) {
+			    	Alert alert = new Alert(AlertType.CONFIRMATION);
+			    	alert.setTitle("Подтверждение удаления файла");
+			    	alert.setHeaderText("Подтвердите удаление файла");
+			    	alert.setContentText("Вы действительно хотите удалить данный файл?");
+
+			    	Optional<ButtonType> result = alert.showAndWait();
+			    	if (result.get() == ButtonType.OK){
+			    		FileItemContainer item = table.getSelectionModel().getSelectedItem();
+				    	item.delete();
+				    	updateData();
+			    	}
+			    }
+			});
+			
+
+			item1.setOnAction(new EventHandler<ActionEvent>() {
+			    public void handle(ActionEvent e) {
+			    	FileController editFile = new FileController();
+					editFile.loadData(table.getSelectionModel().getSelectedItem().getFileId());
+					editFile.run();
+					updateData();
+			    }
+			});
+			
+			
+			
+			TableRow<FileItemContainer> row = new TableRow<FileItemContainer>() {
+				@Override
+				public void updateItem(FileItemContainer item, boolean empty) {
+					super.updateItem(item, empty);
+					if (empty) {
+						setContextMenu(null);
+					} else {
+						setContextMenu(contextMenu);
+					}
+				}
+			};
+			
+			
 			row.setOnMouseClicked(event -> {
 				if (event.getClickCount() == 2 && (!row.isEmpty())) {
-					openFile(new File(FilesModel.getPathToFile(row.getItem().getAuthorId())));
+					openFile(new File(FilesModel.getPathToFile(row.getItem().getFileId())));
 				}
 			});
+			
+			
+			
+			
 			return row;
 		});
 
 		int FilesCount;
 		try {
-
+			
+			ConditionType<String> SearchCondition = null;
+			if(!this.searchedText.isEmpty())
+				SearchCondition = new ConditionType<String>(" f.originalTitle LIKE ?","%"+this.searchedText+"%",2," AND ");
 			Integer start = (this.itemsSellectedPage) * this.itemsPerPage;
 			if (!CUserRules.get("Actions.FullAccessToFiles")) {
-				FilesCount = FilesModel.getFilesByConditions("COUNT(*) as count", selectedCategoryId, CUser.getId(),
-						(Core.ConditionType) null, -1, -1).getInt("count");
-				this.files = FilesModel.getFilesMapByConditions("f.*", selectedCategoryId, CUser.getId(),
-						(Core.ConditionType) null, start, this.itemsPerPage);
+				FilesCount = FilesModel.getFilesByConditions("COUNT(*) as count", FilesModel.getConditionINCategories(selectedCategoryId), CUser.getId(),
+						SearchCondition, -1, -1).getInt("count");
+				this.files = FilesModel.getFilesMapByConditions("f.*", FilesModel.getConditionINCategories(selectedCategoryId), CUser.getId(),
+						SearchCondition, start, this.itemsPerPage);
 			} else {
 				int iid = -1;
-				FilesCount = FilesModel.getFilesByConditions("COUNT(*) as count", selectedCategoryId, iid,
-						(Core.ConditionType) null, -1, -1).getInt("count");
-				this.files = FilesModel.getFilesMapByConditions("f.*", selectedCategoryId, iid,
-						(Core.ConditionType) null, start, this.itemsPerPage);
+				FilesCount = FilesModel.getFilesByConditions("COUNT(*) as count", FilesModel.getConditionINCategories(selectedCategoryId), iid,
+						SearchCondition, -1, -1).getInt("count");
+				this.files = FilesModel.getFilesMapByConditions("f.*", FilesModel.getConditionINCategories(selectedCategoryId), iid,
+						SearchCondition, start, this.itemsPerPage);
 			}
 			this.itemsPages = (FilesCount - 1) / this.itemsPerPage + 1;
 			pagination.setPageCount(itemsPages);
@@ -233,22 +322,7 @@ public class MainGridController extends CController {
 		data.clear();
 		for (Map.Entry file : this.files.entrySet()) {
 			FileItemContainer item = (FileItemContainer) file.getValue();
-			Image image = null;
-			if (item.getIcon() == null) {
-				image = new Image("file:" + FilesModel.getSystemPathToFile("//"));
-			} else if (item.getIcon().equals("IMAGE")) {
-				image = new Image("file:" + FilesModel.getPathToFile(item.getFileId()));
-			} else {
-				image = new Image("file:" + FilesModel.getSystemPathToFile(item.getIcon()));
-			}
-			ImageView iv2 = new ImageView();
-			iv2.setImage(image);
-			iv2.setFitWidth(100);
-			iv2.setFitHeight(100);
-			iv2.setPreserveRatio(true);
-			iv2.setSmooth(true);
-			iv2.setCache(true);
-			item.setRawIcon(iv2);
+			item.generateRawIcon();
 			data.add(item);
 
 			iconCol.setCellValueFactory(new PropertyValueFactory<FileItemContainer, ImageView>("rawIcon"));
@@ -257,7 +331,7 @@ public class MainGridController extends CController {
 			iconCol.setSortable(false);
 			iconCol.setPrefWidth(100);
 
-			titleCol.setCellValueFactory(new PropertyValueFactory<FileItemContainer, String>("title"));
+			titleCol.setCellValueFactory(new PropertyValueFactory<FileItemContainer, String>("originalTitle"));
 
 			titleCol.setMinWidth(20);
 
@@ -288,5 +362,12 @@ public class MainGridController extends CController {
 		 */
 		return true;
 	}
+	
+	
+	
+	
+	
+	
+	
 
 }

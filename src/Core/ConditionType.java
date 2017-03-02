@@ -5,9 +5,19 @@ public class ConditionType<Val>{
 	private String ampersant;
 	private Val conditionValue;
 	private Integer typeVal;
+	/**
+	 * 
+	 * @param conditionString 	- Строка условия с экранируемыми символами
+	 * @param conditionValue	- Само значение поля
+	 * @param typeVal			- Тип значения 1:int 2:string
+	 * @param ampersant			- Амперсант перед условием
+	 */
 	protected void init(String conditionString, Val conditionValue, int typeVal, String ampersant){
 		this.condition = new String(conditionString);
-		this.conditionValue = conditionValue;
+		if(typeVal == 2)
+			this.conditionValue = (Val) new String((String) conditionValue);
+		else
+			this.conditionValue = conditionValue;
 		this.typeVal = typeVal;
 		this.ampersant = new String(ampersant);
 	}
