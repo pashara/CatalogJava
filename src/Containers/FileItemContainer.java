@@ -3,21 +3,23 @@ package Containers;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.text.SimpleDateFormat;
 import java.util.Date;
 
-import Core.CUser;
+import Core.CApplication;
+import Core.CContainer;
 import Core.ConditionType;
 import Models.FilesModel;
 import db.DB;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 
-public class FileItemContainer {
+public class FileItemContainer implements CContainer {
 	private int fileId = -1;
 	private int authorId;
 	private int categoryId;
 	private int typeId;
-	private int size;
+	private long size;
 	private String date = "";
 	private String title = "";
 	private String originalTitle = "";
@@ -25,7 +27,7 @@ public class FileItemContainer {
 	private String icon = "";
 	private ImageView rawIcon;
 
-	protected void init(ResultSet rs){
+	protected void init(ResultSet rs) {
 		try {
 			this.fileId = rs.getInt("id");
 			this.authorId = rs.getInt("author");
@@ -37,37 +39,46 @@ public class FileItemContainer {
 			this.originalTitle = rs.getString("originalTitle");
 			this.date = rs.getString("date");
 			this.icon = rs.getString("icon");
-			
 		} catch (SQLException e) {
-			e.printStackTrace();
+			if (CApplication.debug)
+				e.printStackTrace();
 		}
 	}
-	
+
 	/**
 	 * Load data from base by file id
+	 * 
 	 * @param id
 	 */
-	public FileItemContainer(int id){
-		ConditionType<Integer> SearchCondition = new ConditionType<Integer>(" f.id = ?",id,1," AND ");
+	public FileItemContainer(int id) {
+		ConditionType<Integer> SearchCondition = new ConditionType<Integer>(" f.id = ?", id, 1, " AND ");
 		ResultSet resultSet = FilesModel.getFilesByConditions("f.*", -1, -1, SearchCondition, -1, -1);
 		init(resultSet);
 	}
-	
+
 	/**
 	 * Load data from ResultSet jdbc
+	 * 
 	 * @param rs
 	 */
 	public FileItemContainer(ResultSet resultSet) {
 		init(resultSet);
 	}
 
-	
+	/**
+	 * Allow create empty fileItem to put data in it
+	 */
+	public FileItemContainer() {
+	}
+
 	public int getFileId() {
 		return fileId;
 	}
+
 	public int getAuthorId() {
 		return authorId;
 	}
+
 	public void setAuthorId(int id) {
 		authorId = id;
 	}
@@ -75,6 +86,7 @@ public class FileItemContainer {
 	public int getCategoryId() {
 		return categoryId;
 	}
+
 	public void setCategoryId(int id) {
 		categoryId = id;
 	}
@@ -82,15 +94,17 @@ public class FileItemContainer {
 	public int getTypeId() {
 		return typeId;
 	}
+
 	public void setTypeId(int id) {
 		typeId = id;
 	}
 
-	public int getSize() {
+	public long getSize() {
 		return size;
 	}
-	public void setSize(int id) {
-		size = id;
+
+	public void setSize(long l) {
+		size = l;
 	}
 
 	public String getDate() {
@@ -105,13 +119,28 @@ public class FileItemContainer {
 		return title;
 	}
 
-
-
 	public String getOriginalTitle() {
 		return originalTitle;
 	}
+
+
+	public String getOriginalTitleCroped() {
+		if(originalTitle.length() > 20)
+		    return originalTitle.substring(0,20) + "...";
+		return originalTitle;
+	}
+
+	
 	public void setOriginalTitle(String D) {
 		originalTitle = new String(D);
+	}
+
+	public void setTitle(String D) {
+		title = new String(D);
+	}
+
+	public void setExt(String D) {
+		ext = new String(D);
 	}
 
 	public String getExt() {
@@ -129,8 +158,8 @@ public class FileItemContainer {
 	public void setRawIcon(ImageView rawIcon) {
 		this.rawIcon = rawIcon;
 	}
-	
-	public void generateRawIcon(){
+
+	public void generateRawIcon() {
 		Image image = null;
 		if (this.getIcon() == null) {
 			image = new Image("file:" + FilesModel.getSystemPathToFile("//"));
@@ -148,34 +177,49 @@ public class FileItemContainer {
 		iv2.setCache(true);
 		this.setRawIcon(iv2);
 	}
-	
-	public void delete(){
+
+	public boolean delete() {
 		try {
-			PreparedStatement stmt = DB.conn.prepareStatement("DELETE FROM files WHERE id="+this.getFileId());
+			PreparedStatement stmt = DB.conn.prepareStatement("DELETE FROM files WHERE id= ?");
+			stmt.setInt(1, this.getFileId());
 			stmt.execute();
+			return true;
 		} catch (SQLException e) {
-			e.printStackTrace();
+			if (CApplication.debug)
+				e.printStackTrace();
+			return false;
 		}
 	}
-	
-	public void save(){
-		if(this.fileId == -1){
-			//save
-		}else{
 
+	public boolean save() {
+		try {
 			PreparedStatement stmt;
-			try {
-				stmt = DB.conn.prepareStatement(
-						"UPDATE files SET originalTitle = ? WHERE id="+this.getFileId());
-				stmt.setString(1, this.getOriginalTitle());
-				stmt.execute();
-			} catch (SQLException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+			String SQLQuery = null;
+			if (this.fileId == -1) {
+				SQLQuery = "INSERT INTO files (author, category,title,originalTitle,originalExt,size,typeId,date) VALUES (?,?,?,?,?,?,?,?);";
+			} else {
+				SQLQuery = "UPDATE files SET author = ? , category = ?, title = ? ,originalTitle = ?,originalExt = ?,size = ?,typeId = ? WHERE id=?";
 			}
+			stmt = DB.conn.prepareStatement(SQLQuery);
+			stmt.setInt(1, this.getAuthorId());
+			stmt.setInt(2, this.getCategoryId());
+			stmt.setString(3, this.getTitle());
+			stmt.setString(4, this.getOriginalTitle());
+			stmt.setString(5, this.getExt());
+			stmt.setInt(6, (int) this.getSize());
+			stmt.setInt(7, (int) this.getTypeId());
+			if (this.fileId == -1) {
+				stmt.setString(8, new SimpleDateFormat("dd-MM-yyyy hh:mm:ss").format(new Date()));
+			} else {
+				stmt.setInt(8, this.getFileId());
+			}
+			stmt.execute();
+			return true;
 
-
-			
+		} catch (SQLException e) {
+			if (CApplication.debug)
+				e.printStackTrace();
+			return false;
 		}
 	}
 }

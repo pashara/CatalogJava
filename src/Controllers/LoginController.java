@@ -4,6 +4,11 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
+import org.apache.log4j.Logger;
+
+import com.devcolibri.logpack.OrderLogic;
+
+import Core.CApplication;
 import Core.CController;
 import Core.CUser;
 import Core.MD5;
@@ -22,7 +27,9 @@ import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
 import javafx.scene.text.Text;
 
+
 public class LoginController extends CController {
+	public static final Logger log = Logger.getLogger(LoginController.class);
 	public void run() {
 		primaryStage.setResizable(false);
 		BorderPane root = new BorderPane();
@@ -76,6 +83,7 @@ public class LoginController extends CController {
 					if (rs.getInt("COUNT") == 1) {
 						fPassword.setText("");
 						CUser.loginByUsername(fLogin.getText());
+						log.info("Logining as "+fLogin.getText());
 						CController gridController = new MainGridController();
 						gridController.setPrevScene(primaryStage);
 						gridController.run();
@@ -107,6 +115,10 @@ public class LoginController extends CController {
 		});
 		root.setCenter(gridpane);
 		primaryStage.setScene(scene);
+
+		primaryStage.setResizable(false);
+
+		
 		primaryStage.show();
 		/*CUser.loginByUsername("admin");
 		CController gridController = new MainGridController();

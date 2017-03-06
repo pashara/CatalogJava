@@ -44,10 +44,6 @@ public class FileController extends CController{
 		fTitle.setPromptText("Введите название файла");
 		fTitle.setText(data.getOriginalTitle());
 		
-		Label lCategory = new Label("Название");
-		TextField fCategory = new TextField();
-		fCategory.setPromptText("Введите id категории");
-		fCategory.setText(data.getCategoryId()+"");
 		data.generateRawIcon();
 		
 		Button bSave = new Button("Сохранить");
@@ -58,9 +54,6 @@ public class FileController extends CController{
 		gridpane.add(data.getRawIcon(), 0, 0,1,3);
 		gridpane.add(lTitle, 1, 0);
 		gridpane.add(fTitle, 2, 0);
-
-		gridpane.add(lCategory, 1, 1);
-		gridpane.add(fCategory, 2, 1);
 
 		gridpane.add(bSave, 1, 2);
 
@@ -73,7 +66,7 @@ public class FileController extends CController{
         dialogStage.initOwner(primaryStage);
         Scene scene = new Scene(gridpane);
         dialogStage.setWidth(500);
-        dialogStage.setHeight(300);
+        dialogStage.setHeight(200);
         dialogStage.setScene(scene);
         
         

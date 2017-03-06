@@ -16,6 +16,7 @@ public abstract class CController {
 	public void setPrevScene(Stage prevScene) {
 		this.prevScene = prevScene.getScene();
 	}
+	
 
 	public abstract void run();
 }

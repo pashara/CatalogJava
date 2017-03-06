@@ -48,6 +48,15 @@ public class CUserRules {
 			ForAdmins.put("Actions.FullAdd", true);
 			
 
+			
+
+			ForAdmins.put("Categories.EditMenu", true);
+			
+			
+			ForAdmins.put("Files.EditMenu", true);
+			ForUsers.put("Files.EditMenu", true);
+			
+			
 			ForAdmins.put("Actions.FullAccessToFiles", true);
 
 		}

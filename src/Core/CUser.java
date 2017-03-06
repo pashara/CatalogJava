@@ -29,6 +29,15 @@ public class CUser {
 		}
 
 	}
+	
+	
+	public static boolean isAdmin(){
+		if(getUserStatus() == 2){
+			return true;
+		}
+		return false;
+	}
+	
 
 	public static String getUsername() {
 		return CUser.username;

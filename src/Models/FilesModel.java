@@ -12,12 +12,14 @@ import java.util.Map;
 
 import Containers.FileItemContainer;
 import Containers.MyTreeNoteContainer;
+import Core.CApplication;
 import Core.ConditionType;
 import db.DB;
 
 public class FilesModel {
 	public static String dataDir = "data//";
 
+	private static int maxFIlesizeADAY = 10240000 / 2;
 	private boolean _prevCondition = false;
 
 	/*
@@ -41,7 +43,8 @@ public class FilesModel {
 	/**
 	 * Returns filepath by FileID
 	 *
-	 * @param fileId - FileID
+	 * @param fileId
+	 *            - FileID
 	 */
 	public static String getPathToFile(String fileId) {
 		return getPathToFile(Integer.valueOf(fileId));
@@ -50,43 +53,46 @@ public class FilesModel {
 	/**
 	 * Returns filepath by FileID
 	 *
-	 * @param FileId - FileID
+	 * @param FileId
+	 *            - FileID
 	 * @return Full filepath
 	 */
 	public static String getSystemPathToFile(String filename) {
 		return System.getProperty("user.dir") + File.separator + "data" + File.separator + "system" + File.separator
 				+ File.separator + filename.replace("//", File.separator);
 	}
+
 	private static String STRR = "";
-	private static void _recursiveFinder(Integer ActiveCategory){
-		ResultSet RequestResult = DB.exSelect("select id,parent from categories WHERE parent ="+ActiveCategory);
-		
+
+	private static void _recursiveFinder(Integer ActiveCategory) {
+		ResultSet RequestResult = DB.exSelect("select id,parent from categories WHERE parent =" + ActiveCategory);
+
 		try {
-			if(RequestResult.getInt("parent") == 0){		//Выход из рекурсии
+			if (RequestResult.getInt("parent") == 0) { // Выход из рекурсии
 				return;
 			}
-			
+
 			while (RequestResult.next()) {
 
-				STRR += RequestResult.getInt("id")+",";
+				STRR += RequestResult.getInt("id") + ",";
 				_recursiveFinder(RequestResult.getInt("id"));
 			}
 		} catch (NumberFormatException | SQLException e) {
 			return;
 		}
-		//_recursiveFinder()
+		// _recursiveFinder()
 	}
-	
+
 	public static String getConditionINCategories(Integer ActiveCategory) {
-		if(ActiveCategory == 0){
+		if (ActiveCategory == 0) {
 			return " > -1";
 		}
-		STRR = " IN("+ActiveCategory+",";
+		STRR = " IN(" + ActiveCategory + ",";
 
 		_recursiveFinder(ActiveCategory);
-		
-		STRR = STRR.substring(0, STRR.length()-1); 
-		STRR+=") ";
+
+		STRR = STRR.substring(0, STRR.length() - 1);
+		STRR += ") ";
 		return STRR;
 	}
 
@@ -115,9 +121,9 @@ public class FilesModel {
 				+ authorId.toString() + File.separator + title;
 	}
 
-	/*
-	 * @override Try to find file EXTENTION in base from child to parent 0 -
-	 * deny 1 - go2Next 2 - allowed
+	/**
+	 * Try to find file EXTENTION in base from child to parent 0 - deny 1 -
+	 * go2Next 2 - allowed
 	 */
 	public static int isGoodExt(int id, String type) throws ClassNotFoundException, SQLException {
 		if (id == 0)
@@ -178,8 +184,14 @@ public class FilesModel {
 	}
 
 	@SuppressWarnings("rawtypes")
-	public static Map<Integer, FileItemContainer> getFilesMapByConditions(String fields, int categoryId, int authorId,
-			ConditionType condition, int offset, int limit) {
+	public static Map<Integer, FileItemContainer> getFilesMapByConditions(String fields, Integer categoryId,
+			int authorId, ConditionType condition, int offset, int limit) {
+		return getFilesMapByConditions(fields, categoryId.toString(), authorId, condition, offset, limit);
+	}
+
+	@SuppressWarnings("rawtypes")
+	public static Map<Integer, FileItemContainer> getFilesMapByConditions(String fields, String categoryId,
+			int authorId, ConditionType condition, int offset, int limit) {
 		Map<Integer, FileItemContainer> Result = new HashMap<Integer, FileItemContainer>();
 		ResultSet rs = null;
 		rs = _getFilesByConditions(fields, categoryId, authorId, condition, offset, limit);
@@ -196,85 +208,24 @@ public class FilesModel {
 	}
 
 	@SuppressWarnings("rawtypes")
-	public static Map<Integer, FileItemContainer> getFilesMapByConditions(String fields, String categoryId, int authorId,
+	public static ResultSet getFilesByConditions(String fields, Integer categoryId, int authorId,
 			ConditionType condition, int offset, int limit) {
-		Map<Integer, FileItemContainer> Result = new HashMap<Integer, FileItemContainer>();
-		ResultSet rs = null;
-		rs = _getFilesByConditions(fields, categoryId, authorId, condition, offset, limit);
-		try {
-			for (; rs.next();) {
-				FileItemContainer file = new FileItemContainer(rs);
-				Result.put(rs.getInt("id"), file);
-			}
-		} catch (SQLException e) {
-			e.printStackTrace();
-		}
-
-		return Result;
+		return _getFilesByConditions(fields, categoryId.toString(), authorId, condition, offset, limit);
 	}
 
 	@SuppressWarnings("rawtypes")
-	public static ResultSet getFilesByConditions(String fields, int categoryId, int authorId, ConditionType condition,
-			int offset, int limit) {
-		ResultSet rs = null;
-		rs = _getFilesByConditions(fields, categoryId, authorId, condition, offset, limit);
-		return rs;
-	}
-	@SuppressWarnings("rawtypes")
-	public static ResultSet getFilesByConditions(String fields, String categoryId, int authorId, ConditionType condition,
-			int offset, int limit) {
+	public static ResultSet getFilesByConditions(String fields, String categoryId, int authorId,
+			ConditionType condition, int offset, int limit) {
 		ResultSet rs = null;
 		rs = _getFilesByConditions(fields, categoryId, authorId, condition, offset, limit);
 		return rs;
 	}
 
 	@SuppressWarnings("rawtypes")
-	protected static ResultSet _getFilesByConditions(String fields, int categoryId, int authorId,
+	protected static ResultSet _getFilesByConditions(String fields, Integer categoryId, int authorId,
 			ConditionType condition, int offset, int limit) {
-		try {
-			String WhereCondition = "";
-			FilesModel FilesModelObj = new FilesModel();
-
-			WhereCondition += FilesModelObj.AddCondition2String("f.author=" + authorId, (authorId >= 0), " AND ");
-			WhereCondition += FilesModelObj.AddCondition2String("f.category=" + categoryId, (categoryId > 0), " AND ");
-			if (condition != null)
-				WhereCondition += FilesModelObj.AddCondition2String(condition.getConditionString(), (condition != null),
-						condition.getAmpersant());
-			String LimitCondition = (offset > -1 && limit > 0) ? "LIMIT " + offset + "," + limit : "";
-
-			PreparedStatement stmt;
-			ResultSet rs = null;
-			String SQLEx = "SELECT " + fields
-					+ ", i.icon as icon FROM files f LEFT OUTER JOIN files_icons i ON f.typeId = i.id "
-					+ ((WhereCondition.length() > 0) ? " WHERE " + WhereCondition : "") + " " + LimitCondition;
-			//System.out.println(SQLEx);
-			stmt = DB.conn.prepareStatement(SQLEx);
-
-			int installedValues = 1;
-
-			if (condition != null) {
-				switch (condition.getTypeVal()) {
-				case 1:
-					stmt.setInt(installedValues, (int) condition.getConditionValue());
-					break;
-				case 2:
-					String aaa = new String((String)condition.getConditionValue());
-					stmt.setString(installedValues, aaa );
-					break;
-				case 3:
-					break;
-				}
-				installedValues++;
-			}
-			rs = stmt.executeQuery();
-			return rs;
-		} catch (SQLException e) {
-			e.printStackTrace();
-			throw new NullPointerException();
-		}
+		return _getFilesByConditions(fields, categoryId.toString(), authorId, condition, offset, limit);
 	}
-	
-	
 
 	@SuppressWarnings("rawtypes")
 	protected static ResultSet _getFilesByConditions(String fields, String categoryId, int authorId,
@@ -295,7 +246,6 @@ public class FilesModel {
 			String SQLEx = "SELECT " + fields
 					+ ", i.icon as icon FROM files f LEFT OUTER JOIN files_icons i ON f.typeId = i.id "
 					+ ((WhereCondition.length() > 0) ? " WHERE " + WhereCondition : "") + " " + LimitCondition;
-			//System.out.println(SQLEx);
 			stmt = DB.conn.prepareStatement(SQLEx);
 
 			int installedValues = 1;
@@ -306,9 +256,8 @@ public class FilesModel {
 					stmt.setInt(installedValues, (int) condition.getConditionValue());
 					break;
 				case 2:
-					//System.out.println("OUT II:"+condition.getConditionValue());
-					String aaa = new String((String)condition.getConditionValue());
-					stmt.setString(installedValues, aaa );
+					String aaa = new String((String) condition.getConditionValue());
+					stmt.setString(installedValues, aaa);
 					break;
 				case 3:
 					break;
@@ -333,11 +282,70 @@ public class FilesModel {
 		return extension;
 	}
 
+	/**
+	 * Меняем файлы в категории, когда удаляем узел дерева
+	 * 
+	 * @param FromCategory
+	 * @param toCategory
+	 */
+	public static void updateFilesWhenDeletedCategories(int FromCategory, int toCategory) {
+		PreparedStatement stmt;
+		if (FromCategory == toCategory)
+			return;
+		try {
+
+			stmt = DB.conn
+					.prepareStatement("UPDATE files SET category=" + toCategory + " WHERE category=" + FromCategory);
+			stmt.execute();
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			CApplication.alertError("Ошибка при работе с базой:" + e.getMessage());
+			e.printStackTrace();
+		}
+	}
+
+	/**
+	 * Переносим файл в категорию
+	 * 
+	 * @param fileId
+	 * @param toCategory
+	 */
+	public static boolean moveFileToCategory(int fileId, int toCategory) {
+		System.out.println("UPDATE files SET category=" + toCategory + " WHERE id=" + fileId);
+		PreparedStatement stmt;
+		try {
+
+			stmt = DB.conn.prepareStatement("UPDATE files SET category=" + toCategory + " WHERE id=" + fileId);
+			stmt.execute();
+		} catch (SQLException e) {
+			CApplication.alertError("Ошибка при работе с базой:" + e.getMessage());
+			e.printStackTrace();
+		}
+		return false;
+	}
+
+	public static boolean isUsersFile(int userId, int fileId) {
+		try {
+			PreparedStatement stmt;
+			ResultSet rs = null;
+			stmt = DB.conn.prepareStatement("SELECT COUNT(*) as count FROM files WHERE author = ? AND id = ?");
+			stmt.setInt(1, userId);
+			stmt.setInt(2, fileId);
+			rs = stmt.executeQuery();
+			if (rs.getInt("count") == 1)
+				return true;
+		} catch (SQLException e) {
+			CApplication.alertError("Ошибка при работе с базой:" + e.getMessage());
+			e.printStackTrace();
+		}
+
+		return false;
+	}
+
 	public static int getUserUpoadSize2day(int userId) {
 		PreparedStatement stmt;
 		ResultSet rs = null;
 		SimpleDateFormat ft = new SimpleDateFormat("dd-MM-yyyy");
-		;
 		try {
 			stmt = DB.conn.prepareStatement(
 					"SELECT SUM(size) as sum FROM files WHERE (date >= ? AND date <= ?) AND author = ?");
@@ -347,8 +355,16 @@ public class FilesModel {
 			rs = stmt.executeQuery();
 			return rs.getInt("sum");
 		} catch (SQLException e) {
+			CApplication.alertError("Ошибка при работе с базой:" + e.getMessage());
 			e.printStackTrace();
 		}
 		return 0;
 	}
+
+	public static boolean isHavePremissionToAddFile(int userId) {
+		if (FilesModel.getUserUpoadSize2day(userId) > maxFIlesizeADAY) 
+			return	false;
+		return true;
+	}
+
 }

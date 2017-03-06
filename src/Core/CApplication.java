@@ -1,24 +1,80 @@
 package Core;
 
+import java.awt.Desktop;
+import java.io.File;
+import java.io.IOException;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.ZonedDateTime;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.Locale;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
+
+import org.apache.log4j.Logger;
+
+import com.devcolibri.logpack.OrderLogic;
 
 import Controllers.LoginController;
+import Controllers.MainGridController;
+import Models.MailModel;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Alert.AlertType;
 import javafx.stage.Stage;
 
+
+
+
 public class CApplication {
+	
+	
+	private static final Logger log = Logger.getLogger(OrderLogic.class);
+	
+	public static MailModel tlsSender = new MailModel("serial-i@ya.ru", "*******");
+	
+	
+	
+	public static boolean isItImage(String ext){
+		String[] exts = {
+				"JPG", "PNG","BMP","JPEG","GIF"
+		};
+		return Arrays.asList(exts).contains(ext.toUpperCase());
+	}
 	public static Stage stage;
 	public static String LastFilePath = "NULL";
-
+	public static boolean debug = true;
 	public static String getTimestampString() {
 		return new String(String.valueOf(ZonedDateTime.now().toInstant().toEpochMilli()));
 	}
 
+
+
+	public static void alertError(String TEXT){
+		Alert alert = new Alert(AlertType.ERROR);
+		alert.setTitle("Ошибка!");
+		alert.setHeaderText("Произошла ошибка:");
+		alert.setContentText(TEXT);	
+		alert.showAndWait();
+		System.out.println(TEXT);
+	}
+	public static void alert(String TEXT){
+		Alert alert = new Alert(AlertType.INFORMATION);
+		alert.setTitle("Оповещение");
+		alert.setHeaderText("");
+		alert.setContentText(TEXT);	
+		alert.showAndWait();
+		System.out.println(TEXT);
+	}
+	public static void openFile(File file) {
+		try {
+			Desktop.getDesktop().open(file);
+		} catch (IOException ex) {
+			CApplication.log.info("Open file "+file);
+		}
+	}
+	
 	public static void run() {
 		CController loginForm = new LoginController();
 		loginForm.run();
